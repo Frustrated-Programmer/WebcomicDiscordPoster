@@ -1,10 +1,28 @@
+const log= function(type,text){
+    if(!savedData.debugging) return;
+        switch(type){
+            case 0:
+                console.log("[\x1b[36mINDEXJS\x1b[0m]", text);
+                break;
+            case 1:
+                console.log("[\x1b[35mWEBSITE\x1b[0m]", text);
+                break;
+            case 2:
+                console.log("[\x1b[32mDISCORD\x1b[0m]", text);
+                break;
+            case 3:
+                console.log("[\x1b[33mPINGER.\x1b[0m]", text);
+                break;
+            default:
+                console.log("[UNKNOWN]", type);
+                break;
+        }
+}
+global.log = log;
 let savedData = require("./savedData.json");
 const websiteHandler = new (require("./websiteHandler.js"))(savedData);
 const discordHandler = new (require("./discordHandler.js"))(savedData,checkForComic,getTimer);
 const fs = require("fs");
-const log= function(text){
-    if(savedData.debugging) console.log("[\x1b[36mINDEXJS\x1b[0m]", text);
-}
 //How often does it check for a new page.
 const updateTimer = ((((1000 * 60) * 60) * 24) * 7);//Once a week.
 let lastRan = 0;
@@ -38,25 +56,29 @@ function getTimer(){
     return amount;
 }
 function checkForComic(repeat){
-    log("Checking for comic.");
-    websiteHandler.getCurrentPageDate().then(function(date){
-        if(savedData.latestComic !== date){
-            websiteHandler.getCurrentPageImgLink().then(discordHandler.sendComic.bind(discordHandler));
-            savedData.latestComic = date;
-            fs.writeFile("savedData.json",JSON.stringify(savedData),function(){
-                log('Updated [savedData.json] to contain comic\'s current date.');
-            });
+    log(0,"Checking for comic.");
+    return new Promise(function(cb,rj){
+        websiteHandler.getCurrentPageDate().then(function(date){
+            if(savedData.latestComic !== date){
+                websiteHandler.getCurrentPageImgLink().then(discordHandler.sendComic.bind(discordHandler));
+                savedData.latestComic = date;
+                fs.writeFile("savedData.json",JSON.stringify(savedData),function(){
+                    log(0,'Updated [savedData.json] to contain comic\'s current date.');
+                });
+                cb(true);
+            }
+            else{
+                log(0,'No new comic found.');
+                cb(false);
+            }
+        }).catch(rj);
+        if(repeat){
+            lastRan = Date.now();
+            setTimeout(checkForComic, updateTimer,true);
         }
-        else{
-            log('No new comic found.');
-        }
-    })
-    if(repeat){
-        lastRan = Date.now();
-        setTimeout(checkForComic, updateTimer,true);
-    }
+    });
 }
 checkForComic(true);//Check for comic on boot.
 
 
-log("Index.js: Started");
+log(0,"Index.js: Started");
