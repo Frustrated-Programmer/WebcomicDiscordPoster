@@ -27,7 +27,7 @@ const fs = require("fs");
 const updateTimer = ((((1000 * 60) * 60) * 24) * 7);//Once a week.
 let lastRan = 0;
 function getTimer(){
-    let timeTill = updateTimer - (lastRan - Date.now());
+    let timeTill = updateTimer - (Date.now() - lastRan);
     let time = [];
     let second = 1000;
     let minute = second * 60;
@@ -44,15 +44,15 @@ function getTimer(){
     let amount = "";
 
     function addToAmount(txt,final){
-        if(final && amount.length) txt+="and ";
+        if(final && amount.length) amount+="and ";
+        else txt +=", ";
         amount+=txt;
-        if(!final) txt+=", ";
     }
-    if(time[0] > 0) addToAmount(`${time[0]} Days`);
-    if(time[1] > 0) addToAmount(`${time[1]} Hours`);
-    if(time[2] > 0) addToAmount(`${time[2]} Minutes`,!(time[0] === 0));
-    if(time[3] > 0 && time[0] === 0) addToAmount(`${time[3]} Seconds`,!(time[0] === 0 && time[1] === 0));
-    if(timeTill > 0 && time[0] === 0 && time[1] === 0) addToAmount(`${timeTill} Milliseconds`);
+    if(time[0] > 0) addToAmount(`${time[0]} Days`,false);
+    if(time[1] > 0) addToAmount(`${time[1]} Hours`,false);
+    if(time[2] > 0) addToAmount(`${time[2]} Minutes`,!(time[3] > 0 && time[0] === 0));
+    if(time[3] > 0 && time[0] === 0) addToAmount(`${time[3]} Seconds`,!(timeTill > 0 && time[0] === 0 && time[1] === 0));
+    if(timeTill > 0 && time[0] === 0 && time[1] === 0) addToAmount(`${timeTill} Milliseconds`,true);
     return amount;
 }
 function checkForComic(repeat){
