@@ -1,16 +1,19 @@
 const discord = require("discord.js");
 const fs = require("fs");
-function getTime (time) {
+
+function getTime(time){
     let mins = time.getMinutes();
     let minutes = `00`;
     minutes = minutes.substring(`${mins}`.length);
-    return `${`${time.getHours() > 12 ? time.getHours() - 12 : time.getHours() }:${minutes}${mins} ${time.getHours() > 12 ? `PM` : `AM`}`}`;
+    return `${`${time.getHours() > 12 ? time.getHours() - 12 : time.getHours()}:${minutes}${mins} ${time.getHours() > 12 ? `PM` : `AM`}`}`;
 }
+
 let console = {
-    log:function(item){
-        log(3,item);
+    log: function(item){
+        log(3, item);
     }
-}
+};
+
 class discordHandler{
     constructor(options){
         options = options || {};
@@ -43,11 +46,11 @@ class discordHandler{
                 channel.fetchMessage(this.rebootMsg.m).then(function(msg){
                     msg.edit("✅ Rebooted.");
                     this.rebootMsg = false;
-                }).catch((e)=>{
-                    log(2,`Unable to find reboot msg. rebootMsg.m: ${this.rebootMsg.m}`);
+                }).catch((e) => {
+                    log(2, `Unable to find reboot msg. rebootMsg.m: ${this.rebootMsg.m}`);
                 });
             }
-            else log(2,`Unable to find channel that stored reboot msg. rebootMsg.c: ${this.rebootMsg.c}`);
+            else log(2, `Unable to find channel that stored reboot msg. rebootMsg.c: ${this.rebootMsg.c}`);
         }
         if(this.awaitingComic){
             log(2, "Sending comic.");
@@ -64,20 +67,22 @@ class discordHandler{
         if(msg.content.startsWith(`<@${this.client.user.id}>`) || msg.content.startsWith(`<@&${this.client.user.id}>`) || msg.content.startsWith(`<@!${this.client.user.id}>`)){
             mention = true;
             if(msg.content.startsWith(`<@${this.client.user.id}>`)){
-                nxtCmd = msg.content.toLowerCase().substring((`<@${this.client.user.id}>`).length,msg.content.length).trim().split(" ")[0];
+                nxtCmd = msg.content.toLowerCase().substring((`<@${this.client.user.id}>`).length, msg.content.length).trim().split(" ")[0];
             }
             else{
-                nxtCmd = msg.content.toLowerCase().substring((`<@!${this.client.user.id}>`).length,msg.content.length).trim().split(" ")[0];
+                nxtCmd = msg.content.toLowerCase().substring((`<@!${this.client.user.id}>`).length, msg.content.length).trim().split(" ")[0];
             }
         }
         if(!isAdmin || !mention) return;
         if(nxtCmd === "ping") this.ping(msg);
         else if(nxtCmd === "restart") this.restart(msg);
         else if(nxtCmd === "checkforcomic") this.checkComic(msg);
-        else if(nxtCmd === "eval") {
+        else if(nxtCmd === "eval"){
             if(isOwner) this.eval(msg);
-            else msg.channel.reply('I\'m sorry, but only the Owner of the bot can use this command')
+            else msg.channel.reply("I'm sorry, but only the Owner of the bot can use this command");
         }
+        else if(nxtCmd === "about" || nxtCmd === "credits" || nxtCmd === "help") this.about(msg);
+
 
     }
 
@@ -96,7 +101,7 @@ class discordHandler{
                 log(2, `Sent latest comic page.`);
             });
         }
-        else log(2,`Unable to find channel to put current page. channelID: ${this.channelID}`);
+        else log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
     }
 
     restart(msg){
@@ -112,9 +117,9 @@ class discordHandler{
 
     checkComic(msg){
         log(2, `${msg.author.username}[${msg.author.id}] used the [checkForComic] command.`);
-        msg.channel.send('🔍 Searching...').then((m)=>{
+        msg.channel.send("🔍 Searching...").then((m) => {
             checkForComic().then(function(found){
-                if(!found) m.edit('🚫 No new comic found.');
+                if(!found) m.edit("🚫 No new comic found.");
                 else m.delete();
             });
         });
@@ -165,26 +170,37 @@ class discordHandler{
             .setDescription(`\`\`\`nx\n${code}\`\`\``)
             .setFooter(`Requested by ${message.author.tag} at ${getTime(new Date())}`, message.author.avatarURL);
 
-        function clean(text) {
-            if (typeof(text) === `string`)
+        function clean(text){
+            if(typeof (text) === `string`)
                 return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
             else
                 return text;
         }
 
-        try {
+        try{
             let evaled = eval(code);
-            if (typeof evaled !== `string`)
+            if(typeof evaled !== `string`)
                 evaled = require(`util`).inspect(evaled);
-            embed.setColor("#0000ff")
+            embed.setColor("#0000FF")
                 .addField(`Output`, `\`\`\`nx\n${clean(evaled)}\`\`\``);
         }
-        catch (err) {
-            embed.setColor("#ff0000")
+        catch(err){
+            embed.setColor("#FF0000")
                 .addField(`Output`, `\`\`\`nx\n${clean(err)}\`\`\``);
         }
 
         message.channel.send({embed});
+    }
+
+    about(msg){
+        let embed = new discord.RichEmbed();
+        embed.setColor("#00FF00")
+            .setTitle("About")
+            .setDescription("I am a bot designed to grab comics from http://www.thedreamlandchronicles.com/ and post them in a discord channel.")
+            .addField("GitHub repo:", "https://github.com/Frustrated-Programmer/DreamlandChroniclesDiscordBot/")
+            .addField("Programmer:", "https://frustratedprogrammer.com")
+            .setFooter("Coded by FrustratedProgrammer.");
+        msg.channel.send({embed});
     }
 
 }
