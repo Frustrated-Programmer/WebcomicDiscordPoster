@@ -1,4 +1,4 @@
-const log= function(type,text){
+global.log= function(type,text){
     if(!savedData.debugging) return;
         switch(type){
             case 0:
@@ -11,22 +11,21 @@ const log= function(type,text){
                 console.log("[\x1b[32mDISCORD\x1b[0m]", text);
                 break;
             case 3:
-                console.log("[\x1b[33mPINGER.\x1b[0m]", text);
+                console.log("[\x1b[33mEVALCMD\x1b[0m]", text);
                 break;
             default:
                 console.log("[UNKNOWN]", type);
                 break;
         }
 }
-global.log = log;
-let savedData = require("./savedData.json");
-const websiteHandler = new (require("./websiteHandler.js"))(savedData);
-const discordHandler = new (require("./discordHandler.js"))(savedData,checkForComic,getTimer);
-const fs = require("fs");
 //How often does it check for a new page.
-const updateTimer = ((((1000 * 60) * 60) * 24) * 7);//Once a week.
+global.updateTimer = ((((1000 * 60) * 60) * 24) * 7);//Once a week.
+global.savedData = require("./savedData.json");
+const fs = require("fs");
+const websiteHandler = new (require("./websiteHandler.js"))(savedData);
+const discordHandler = new (require("./discordHandler.js"))(savedData);
 let lastRan = 0;
-function getTimer(){
+global.getTimer = function(full = false){
     let timeTill = updateTimer - (Date.now() - lastRan);
     let time = [];
     let second = 1000;
@@ -50,12 +49,12 @@ function getTimer(){
     }
     if(time[0] > 0) addToAmount(`${time[0]} Days`,false);
     if(time[1] > 0) addToAmount(`${time[1]} Hours`,false);
-    if(time[2] > 0) addToAmount(`${time[2]} Minutes`,!(time[3] > 0 && time[0] === 0));
-    if(time[3] > 0 && time[0] === 0) addToAmount(`${time[3]} Seconds`,!(timeTill > 0 && time[0] === 0 && time[1] === 0));
-    if(timeTill > 0 && time[0] === 0 && time[1] === 0) addToAmount(`${timeTill} Milliseconds`,true);
+    if(time[2] > 0) addToAmount(`${time[2]} Minutes`,!((time[3] > 0 && time[0] === 0) || full));
+    if((time[3] > 0 && time[0] === 0) || full) addToAmount(`${time[3]} Seconds`,!((timeTill > 0 && time[0] === 0 && time[1] === 0) || full));
+    if((timeTill > 0 && time[0] === 0 && time[1] === 0) || full) addToAmount(`${timeTill} Milliseconds`,true);
     return amount;
 }
-function checkForComic(repeat){
+global.checkForComic=function(repeat){
     log(0,"Checking for comic.");
     return new Promise(function(cb,rj){
         websiteHandler.getCurrentPageDate().then(function(date){
