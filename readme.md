@@ -3,12 +3,12 @@
 ### Setup
  * Make sure you have node installed.
  * Install the required dependencies `npm i`.
- * Make sure the code has permission can write to `savedData.json`.
- * Update `savedData.json` to have the key items.
+ * Make sure the code has permission can write to `data.json`.
+ * Update `data.json` to have the key items.
  * Run `index.js` in a terminal via `node index.js`
 
-### savedData.json
-`savedData.json` needs to have 5 keys inside an object like so:
+### data.json
+`data.json` needs to have 5 keys inside an object like so:
 ```json
 {
     "key":"",
