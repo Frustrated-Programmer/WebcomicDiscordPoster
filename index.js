@@ -20,7 +20,7 @@ global.log= function(type,text){
 }
 //How often does it check for a new page.
 global.updateTimer = ((((1000 * 60) * 60) * 24) * 7);//Once a week.
-global.savedData = require("./savedData.json");
+global.savedData = require("./data.json");
 const fs = require("fs");
 const websiteHandler = new (require("./websiteHandler.js"))(savedData);
 const discordHandler = new (require("./discordHandler.js"))(savedData);
@@ -61,8 +61,8 @@ global.checkForComic=function(repeat){
             if(savedData.latestComic !== date){
                 websiteHandler.getCurrentPageImgLink().then(discordHandler.sendComic.bind(discordHandler));
                 savedData.latestComic = date;
-                fs.writeFile("savedData.json",JSON.stringify(savedData),function(){
-                    log(0,'Updated [savedData.json] to contain comic\'s current date.');
+                fs.writeFile("data.json",JSON.stringify(savedData),function(){
+                    log(0,'Updated [data.json] to contain comic\'s current date.');
                 });
                 cb(true);
             }
