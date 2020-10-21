@@ -25,7 +25,7 @@ class websiteHandler{
                 HTML = HTML.replace("</span><spanclass=\"posted-at\">at&nbsp;</span><spanclass=\"post-time\">",",");
                 log(1,'Successfully retrieved comic\'s date: '+HTML);
                 cb(HTML);
-            });
+            }).catch(rj);
         });
     }
     getCurrentPageImgLink(){

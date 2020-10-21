@@ -19,12 +19,13 @@ global.log= function(type,text){
         }
 }
 //How often does it check for a new page.
-global.updateTimer = ((((1000 * 60) * 60) * 24) * 7);//Once a week.
-global.savedData = require("./data.json");
+global.updateTimer = (((1000 * 60) * 60) * 24);//Once a day.
+global.savedData = require("./data_ personal.json");
 const fs = require("fs");
 const websiteHandler = new (require("./websiteHandler.js"))(savedData);
 const discordHandler = new (require("./discordHandler.js"))(savedData);
 let lastRan = 0;
+global.timeout = undefined;
 global.getTimer = function(full = false){
     let timeTill = updateTimer - (Date.now() - lastRan);
     let time = [];
@@ -73,7 +74,7 @@ global.checkForComic=function(repeat){
         }).catch(rj);
         if(repeat){
             lastRan = Date.now();
-            setTimeout(checkForComic, updateTimer,true);
+            timeout = setTimeout(checkForComic, updateTimer,true);
         }
     });
 }

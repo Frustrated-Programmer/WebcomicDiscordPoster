@@ -1,6 +1,6 @@
 const discord = require("discord.js");
 const fs = require("fs");
-
+let contentMsg = ["Hey @everyone, a new Dreamland comic has been posted:"]
 function getTime(time){
     let mins = time.getMinutes();
     let minutes = `00`;
@@ -74,7 +74,10 @@ class discordHandler{
             }
         }
         if(!isAdmin || !mention) return;
-        if(nxtCmd === "ping") this.ping(msg);
+        if(nxtCmd === "adminTest"){
+           // this.channelID = msg.channel.id;
+        }
+        else if(nxtCmd === "ping") this.ping(msg);
         else if(nxtCmd === "restart") this.restart(msg);
         else if(nxtCmd === "checkforcomic") this.checkComic(msg);
         else if(nxtCmd === "eval"){
@@ -95,11 +98,11 @@ class discordHandler{
         }
         let channel = this.client.channels.get(this.channelID);
         if(channel){
-            channel.send({
+            channel.send(contentMsg[Math.round(Math.random() * (contentMsg.length-1))],{
                 files: [link]
             }).then(() => {
                 log(2, `Sent latest comic page.`);
-            });
+            }).catch(console.error);
         }
         else log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
     }
@@ -121,8 +124,8 @@ class discordHandler{
             checkForComic().then(function(found){
                 if(!found) m.edit("🚫 No new comic found.");
                 else m.delete();
-            });
-        });
+            }).catch(console.error);
+        }).catch(console.error);
     }
 
     ping(msg){
