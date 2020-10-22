@@ -20,7 +20,7 @@ global.log= function(type,text){
 }
 //How often does it check for a new page.
 global.updateTimer = (((1000 * 60) * 60) * 24);//Once a day.
-global.savedData = require("./data_ personal.json");
+global.savedData = require("./data.json");
 const fs = require("fs");
 const websiteHandler = new (require("./websiteHandler.js"))(savedData);
 const discordHandler = new (require("./discordHandler.js"))(savedData);
