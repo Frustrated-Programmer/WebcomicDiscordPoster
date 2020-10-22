@@ -22,8 +22,8 @@ global.log= function(type,text){
 global.updateTimer = (((1000 * 60) * 60) * 24);//Once a day.
 global.savedData = require("./data.json");
 const fs = require("fs");
-const websiteHandler = new (require("./websiteHandler.js"))(savedData);
-const discordHandler = new (require("./discordHandler.js"))(savedData);
+global.websiteHandler = new (require("./websiteHandler.js"))(savedData);
+global.discordHandler = new (require("./discordHandler.js"))(savedData);
 let lastRan = 0;
 global.timeout = undefined;
 global.getTimer = function(full = false){

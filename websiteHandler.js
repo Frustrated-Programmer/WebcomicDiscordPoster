@@ -20,7 +20,7 @@ class websiteHandler{
                 HTML = HTML.replace(/\s+/g, "");
                 HTML = HTML.replace(/\t+/g, "");
                 HTML = HTML.substring(HTML.indexOf("<divclass=\"post-text\">"),HTML.length);
-                HTML = HTML.substring(0,HTML.indexOf("</span><divclass=\"comic-post-info\"></div></div>"));
+                HTML = HTML.substring(0,HTML.indexOf("</span><divclass=\"comic-post-info\">"));
                 HTML = HTML.substring(HTML.indexOf("<spanclass=\"posted-on\">on&nbsp;</span><spanclass=\"post-date\">")+61,HTML.length);
                 HTML = HTML.replace("</span><spanclass=\"posted-at\">at&nbsp;</span><spanclass=\"post-time\">",",");
                 log(1,'Successfully retrieved comic\'s date: '+HTML);
