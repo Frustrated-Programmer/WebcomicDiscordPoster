@@ -1,3 +1,5 @@
+console.log('\n\n\n\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
+console.log('Code started on: '+(new Date()).toString());
 global.log= function(type,text){
     if(!savedData.debugging) return;
         switch(type){
