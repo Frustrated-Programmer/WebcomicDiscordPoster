@@ -1,6 +1,6 @@
 console.log('\n\n\n\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-');
-console.log('Code started on: '+(new Date()).toString());
-global.log= function(type,text){
+console.log('Code started');
+global.log = function(type,text){
     if(!savedData.debugging) return;
         switch(type){
             case 0:
@@ -15,6 +15,12 @@ global.log= function(type,text){
             case 3:
                 console.log("[\x1b[33mEVALCMD\x1b[0m]", text);
                 break;
+            case 4:
+                console.log("[\x1b[34mDAT&TIM]\x1b[0m]", text);
+                break;
+            case 4:
+                console.log("[\x1b[35mERROR!!]\x1b[0m]", text);
+                break;
             default:
                 console.log("[UNKNOWN]", type);
                 break;
@@ -22,8 +28,22 @@ global.log= function(type,text){
 }
 //How often does it check for a new page.
 global.updateTimer = (((1000 * 60) * 60) );//Every hour.
-global.savedData = require("./data.json");
+global.savedData = require("./data_personal.json");
+log(4,(new Date()).toString());
+
 const fs = require("fs");
+global.isBotDown = null;
+global.botDown = function(){
+    isBotDown = true;
+    log(0,"Checking if client can reconnect in 30 minutes.");
+    return;
+    log(4,(new Date()).toString())
+    setTimeout(function(){
+        log(0,"Checking if client can reconnect.")
+        log(4,(new Date()).toString())
+        discordHandler.reboot();
+    },(60000*30));
+}
 global.websiteHandler = new (require("./websiteHandler.js"))(savedData);
 global.discordHandler = new (require("./discordHandler.js"))(savedData);
 let lastRan = 0;

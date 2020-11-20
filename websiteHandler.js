@@ -7,6 +7,8 @@ class websiteHandler{
     }
     getCurrentPageHTML(){
         return new Promise((cb, rj) =>{
+            log(1,'Checking HTML');
+            log(4,(new Date()).toString());
             fetch("http://www.thedreamlandchronicles.com/")
                 .then((result) => {
                     log(1,'Successfully retrieved HTML for: http://www.thedreamlandchronicles.com/');

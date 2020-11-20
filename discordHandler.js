@@ -11,6 +11,9 @@ function getTime(time){
 let console = {
     log: function(item){
         log(3, item);
+    },
+    error: function(item){
+        log(5, item);
     }
 };
 
@@ -35,10 +38,33 @@ class discordHandler{
         this.client.login(this.key);
         this.client.on("ready", this.onReady.bind(this));
         this.client.on("message", this.onMessage.bind(this));
+        this.client.on("error",this.onError.bind(this));
+        this.client.on('disconnect',this.onDisconnect.bind(this));
     }
-
+    onDisconnect(){
+        if(isBotDown) return;
+        isBotDown = true;
+        log(2,"Client disconnected safely");
+        log(4,(new Date()).toString());
+    }
+    onError(errorCode){
+        if(isBotDown) return;
+        this.client.destroy().then(
+            function(){
+                log(2,"Client turned off incorrectly, Error: "+errorCode.message);
+                log(4,(new Date()).toString())
+                botDown();
+            }
+        ).catch(function(e){
+            console.error(e);
+            log(4,(new Date()).toString())
+            botDown();
+        })
+    }
     onReady(){
         log(2, "Client online");
+        log(4,(new Date()).toString())
+        isBotDown = false;
         this.online = Date.now();
         if(this.rebootMsg){
             let channel = this.client.channels.get(this.rebootMsg.c);
