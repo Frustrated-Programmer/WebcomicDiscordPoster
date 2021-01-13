@@ -55,12 +55,11 @@ class discordHandler{
         log(2, `Starting Client.`);
         if(this.client && this.client.status !== 5) this.client.destroy();
         this.client = new discord.Client();
-        this.client.login(this.key).then(() => {
-            this.client.on("ready", this.onReady.bind(this));
-            this.client.on("message", this.onMessage.bind(this));
-            this.client.on("error", this.onError.bind(this));
-            this.client.on("disconnect", this.onDisconnect.bind(this));
-        }).catch(this.onError.bind(this));
+        this.client.on("ready", this.onReady.bind(this));
+        this.client.on("message", this.onMessage.bind(this));
+        this.client.on("error", this.onError.bind(this));
+        this.client.on("disconnect", this.onDisconnect.bind(this));
+        this.client.login(this.key).then().catch(this.onError.bind(this));
     }
 
     /**
