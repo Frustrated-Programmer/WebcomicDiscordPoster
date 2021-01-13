@@ -149,7 +149,7 @@ class discordHandler{
         else if(nxtCmd === "ping") this.ping(message);
         else if(nxtCmd === "restart") this.restart(message);
         else if(nxtCmd === "shutdown"){
-            if(isOwner) process.exit(0);
+            if(isOwner) this.shutdown(message);
             else message.channel.send("I'm sorry, but only the Owner of the bot can use this command");
         }
         else if(nxtCmd === "checkforcomic") this.checkComic(message);
@@ -162,7 +162,14 @@ class discordHandler{
 
 
     }
-
+    shutdown(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [SHUTDOWN] command.`);
+        this.client.destroy().then(function(){
+            process.exit(0);
+        }).catch(function(){
+            process.exit(0);
+        })
+    }
     /**
      * When the INDEX.JS wants to send the comic, this is ran. It looks for the channel and then sends the comic.
      * @param link
@@ -257,6 +264,7 @@ class discordHandler{
      * @param {Message} message
      */
     eval(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [EVAL] command.`);
         //Since @args is all lowercase, we need to re-get the arguments without lowercasing them.
         let code = message.content.split(` `);
         code.shift();
