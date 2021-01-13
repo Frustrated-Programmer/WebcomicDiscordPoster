@@ -1,4 +1,4 @@
-# Dreamland Chronicles Comic Poster
+# Online Comic Poster for Discord
 
 ### Setup
  * Make sure you have node installed.
@@ -6,6 +6,8 @@
  * Make sure the code has permission can write to `data.json`.
  * Update `data.json` to have the key items.
  * Run `index.js` in a terminal via `node index.js`
+ * go to your comic's domain page and find a way to access the latest comic every single time. (generally homepage) Then go into `websiteHandler.js` and edit `getCurrentPageImgLink` & `getCurrentPageDate` to extract the info from the page.
+ * *If you need help on the last step lemme know so I can help, it's a difficult step.*
 
 ### data.json
 `data.json` needs to have these keys inside an object like so:

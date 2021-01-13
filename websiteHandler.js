@@ -8,7 +8,7 @@ const fetch = require("node-fetch");
 
 class websiteHandler{
     constructor(){
-        this.downloadLocation = "http://www.thedreamlandchronicles.com/";
+        this.downloadLocation = "http://www.thedreamlandchronicles.com/";//The bot is currently setup for this domain.
         log(1, "WebsiteHandler: READY.");
     }
 
