@@ -1,8 +1,19 @@
 {
+	"README": "Check the README.md for setup on these keys",
 	"key": "",
 	"admins": [],
 	"owners": [],
 	"channelID": "",
 	"debugging": true,
-	"latestComic": ""
+	"latestComic": "",
+	"useEmailHandler": false,
+	"host": "",
+	"port": 0,
+	"sender": "",
+	"receiver": "",
+	"auth": {
+		"user": "",
+		"pass": ""
+	}
+	
 }

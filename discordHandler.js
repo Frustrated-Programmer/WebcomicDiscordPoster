@@ -1,6 +1,18 @@
+/**
+ * The DiscordHandler is the part that takes care of the user side of things.
+ * Here we make sure the client is online as much as possible,
+ * Reboot itself when the client goes down,
+ * and of course when prompted send the Comic Strip to the desired channel.
+ */
 const discord = require("discord.js");
 const fs = require("fs");
-let contentMsg = ["Hey @everyone, a new Dreamland comic has been posted:"]
+let contentMsg = ["Hey @everyone, a new Dreamland Comic has been posted:", "@everyone, please turn your attention to the new Dreamland Comic:", "Attention @everyone, a new Dreamland Comic:"];
+
+/**
+ * Get a formatted version of Date & Time.
+ * @param {DateConstructor} time
+ * @return {string}
+ */
 function getTime(time){
     let mins = time.getMinutes();
     let minutes = `00`;
@@ -8,12 +20,16 @@ function getTime(time){
     return `${`${time.getHours() > 12 ? time.getHours() - 12 : time.getHours()}:${minutes}${mins} ${time.getHours() > 12 ? `PM` : `AM`}`}`;
 }
 
+//Used in case the eval command uses a console.log .error or .warn The .dir is left due to me not wanting to try to reproduce it.
 let console = {
     log: function(item){
-        log(3, item);
+        log(103, item);
+    },
+    warn: function(){
+        log(103, "[WARN] " + item);
     },
     error: function(item){
-        log(5, item);
+        log(105, item);
     }
 };
 
@@ -23,47 +39,71 @@ class discordHandler{
         this.key = options.key;
         this.admins = options.admins;
         this.owners = options.owners;
-        this.debugging = options.debugging || false;
         this.channelID = options.channelID;
         this.rebootMsg = false;
         this.online = 0;
         this.awaitingComic = false;
-        log(2, "DiscordHandler: Started.");
-        this.reboot();
+        log(2, "DiscordHandler: READY.");
+        setTimeout(this.reboot.bind(this), 5000);
     }
 
+    /**
+     * This may be called reboot, but it actually just boots up the client,
+     * it shouldn't ever be ran if the client is currently online.
+     */
     reboot(){
         log(2, `Starting Client.`);
+        if(this.client && this.client.status !== 5) this.client.destroy();
         this.client = new discord.Client();
-        this.client.login(this.key);
-        this.client.on("ready", this.onReady.bind(this));
-        this.client.on("message", this.onMessage.bind(this));
-        this.client.on("error",this.onError.bind(this));
-        this.client.on('disconnect',this.onDisconnect.bind(this));
+        this.client.login(this.key).then(() => {
+            this.client.on("ready", this.onReady.bind(this));
+            this.client.on("message", this.onMessage.bind(this));
+            this.client.on("error", this.onError.bind(this));
+            this.client.on("disconnect", this.onDisconnect.bind(this));
+        }).catch(this.onError.bind(this));
     }
+
+    /**
+     * On case the client disconnects from one of the few cases we run a `client.destroy()`
+     */
     onDisconnect(){
         if(isBotDown) return;
         isBotDown = true;
-        log(2,"Client disconnected safely");
-        log(4,(new Date()).toString());
+        log(2, "Client disconnected safely");
+        log(4, (new Date()).toString());
     }
-    onError(errorCode){
-        if(isBotDown) return;
-        this.client.destroy().then(
-            function(){
-                log(2,"Client turned off incorrectly, Error: "+errorCode.message);
-                log(4,(new Date()).toString())
+
+    /**
+     * When the client emits an error, it's mostly ran because it loses connection
+     * @param {Error} error
+     */
+    onError(error){
+        if(!isBotDown && this.client && this.client.status !== undefined){
+            this.client.destroy().then(function(){
+                log(2, "Client turned off incorrectly at:");
+                log(4, (new Date()).toString());
+                errorHandler.onError(error).then(function(){
+                    botDown();
+                }).catch(errorHandlerCrashed);
+            }).catch(function(e){
+                console.error(e);
+                log(4, (new Date()).toString());
                 botDown();
-            }
-        ).catch(function(e){
-            console.error(e);
-            log(4,(new Date()).toString())
+            });
+        }
+        else{
+            log(2, "Client turned off incorrectly, Error: " + error.message);
+            log(4, (new Date()).toString());
             botDown();
-        })
+        }
     }
+
+    /**
+     * For when the client is online and connected. Ready to send messages and gather data.
+     */
     onReady(){
         log(2, "Client online");
-        log(4,(new Date()).toString())
+        log(4, (new Date()).toString());
         isBotDown = false;
         this.online = Date.now();
         if(this.rebootMsg){
@@ -85,36 +125,49 @@ class discordHandler{
         }
     }
 
-    onMessage(msg){
-        let isAdmin = ((this.admins.filter((value) => value === msg.author.id)).length !== 0);
-        let isOwner = ((this.owners.filter((value) => value === msg.author.id)).length !== 0);
+    /**
+     * When the bot recieves a message. Typically ignores these unless pinged, then it awaits a command
+     * @param {Message} message
+     */
+    onMessage(message){
+        let isAdmin = ((this.admins.filter((value) => value === message.author.id)).length !== 0);
+        let isOwner = ((this.owners.filter((value) => value === message.author.id)).length !== 0);
         let mention = false;
         let nxtCmd = "";
-        if(msg.content.startsWith(`<@${this.client.user.id}>`) || msg.content.startsWith(`<@&${this.client.user.id}>`) || msg.content.startsWith(`<@!${this.client.user.id}>`)){
+        if(message.content.startsWith(`<@${this.client.user.id}>`) || message.content.startsWith(`<@&${this.client.user.id}>`) || message.content.startsWith(`<@!${this.client.user.id}>`)){
             mention = true;
-            if(msg.content.startsWith(`<@${this.client.user.id}>`)){
-                nxtCmd = msg.content.toLowerCase().substring((`<@${this.client.user.id}>`).length, msg.content.length).trim().split(" ")[0];
+            if(message.content.startsWith(`<@${this.client.user.id}>`)){
+                nxtCmd = message.content.toLowerCase().substring((`<@${this.client.user.id}>`).length, message.content.length).trim().split(" ")[0];
             }
             else{
-                nxtCmd = msg.content.toLowerCase().substring((`<@!${this.client.user.id}>`).length, msg.content.length).trim().split(" ")[0];
+                nxtCmd = message.content.toLowerCase().substring((`<@!${this.client.user.id}>`).length, message.content.length).trim().split(" ")[0];
             }
         }
         if(!isAdmin || !mention) return;
         if(nxtCmd === "adminTest"){
-           // this.channelID = msg.channel.id;
+            // this.channelID = msg.channel.id;
         }
-        else if(nxtCmd === "ping") this.ping(msg);
-        else if(nxtCmd === "restart") this.restart(msg);
-        else if(nxtCmd === "checkforcomic") this.checkComic(msg);
+        else if(nxtCmd === "ping") this.ping(message);
+        else if(nxtCmd === "restart") this.restart(message);
+        else if(nxtCmd === "shutdown"){
+            if(isOwner) process.exit(0);
+            else message.channel.send("I'm sorry, but only the Owner of the bot can use this command");
+        }
+        else if(nxtCmd === "checkforcomic") this.checkComic(message);
         else if(nxtCmd === "eval"){
-            if(isOwner) this.eval(msg);
-            else msg.channel.reply("I'm sorry, but only the Owner of the bot can use this command");
+            if(isOwner) this.eval(message);
+            else message.channel.send("I'm sorry, but only the Owner of the bot can use this command");
         }
-        else if(nxtCmd === "about" || nxtCmd === "credits" || nxtCmd === "help") this.about(msg);
+        else if(nxtCmd === "notify" || nxtCmd === "notif") this.notify(message);
+        else if(nxtCmd === "about" || nxtCmd === "credits" || nxtCmd === "help") this.about(message);
 
 
     }
 
+    /**
+     * When the INDEX.JS wants to send the comic, this is ran. It looks for the channel and then sends the comic.
+     * @param link
+     */
     sendComic(link){
         if(this.online === 0){
             log(2, "Comic cannot send: Client isn't online.");
@@ -124,18 +177,22 @@ class discordHandler{
         }
         let channel = this.client.channels.get(this.channelID);
         if(channel){
-            channel.send(contentMsg[Math.round(Math.random() * (contentMsg.length-1))],{
+            channel.send(contentMsg[Math.round(Math.random() * (contentMsg.length - 1))], {
                 files: [link]
             }).then(() => {
                 log(2, `Sent latest comic page.`);
-            }).catch(console.error);
+            }).catch(this.onError.bind(this));
         }
         else log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
     }
 
-    restart(msg){
-        log(2, `${msg.author.username}[${msg.author.id}] used the [RESTART] command.`);
-        msg.channel.send("🔃 Rebooting...").then((m) => {
+    /**
+     * To restart JUST the discord client, all other code still runs.
+     * @param {Message} message
+     */
+    restart(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [RESTART] command.`);
+        message.channel.send("🔃 Rebooting...").then((m) => {
             log(2, "Shutting down client.");
             this.rebootMsg = {m: m.id, c: m.channel.id};
             this.online = 0;
@@ -144,9 +201,14 @@ class discordHandler{
         }).catch(this.reboot);
     }
 
-    checkComic(msg){
-        log(2, `${msg.author.username}[${msg.author.id}] used the [checkForComic] command.`);
-        msg.channel.send("🔍 Searching...").then((m) => {
+    /**
+     * For when the `checkForComic` command is run.
+     * It forces a check for a new comic instead of waiting for the timer to run out.
+     * @param {Message} message
+     */
+    checkComic(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [checkForComic] command.`);
+        message.channel.send("🔍 Searching...").then((m) => {
             checkForComic().then(function(found){
                 if(!found) m.edit("🚫 No new comic found.");
                 else m.delete();
@@ -154,8 +216,13 @@ class discordHandler{
         }).catch(console.error);
     }
 
-    ping(msg){
-        log(2, `${msg.author.username}[${msg.author.id}] used the [PING] command.`);
+    /**
+     * For when the `ping` command is run.
+     * Gives basic info about the bot's uptime.
+     * @param {Message} message
+     */
+    ping(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [PING] command.`);
         let date = Date.now() - this.online;
         let time = [];
         let second = 1000;
@@ -182,9 +249,14 @@ class discordHandler{
             .setTitle("Ping")
             .addField(`Bot's been online for`, amount)
             .addField("Bot will check for comic in", getTimer());
-        msg.channel.send({embed});
+        message.channel.send({embed});
     }
 
+    /**
+     * For when the `eval` command is run.
+     * Runs pure code via an `Eval()` then returns the result.
+     * @param {Message} message
+     */
     eval(message){
         //Since @args is all lowercase, we need to re-get the arguments without lowercasing them.
         let code = message.content.split(` `);
@@ -221,6 +293,11 @@ class discordHandler{
         message.channel.send({embed});
     }
 
+    /**
+     * For when the `About` or `Help` command is run.
+     * Gives basic info about bot developer and repo.
+     * @param msg
+     */
     about(msg){
         let embed = new discord.RichEmbed();
         embed.setColor("#00FF00")
@@ -232,6 +309,21 @@ class discordHandler{
         msg.channel.send({embed});
     }
 
+    /**
+     * For when the `notify` command is run.
+     * Sends an email and a DM to the owners of the bot.
+     * @param message
+     */
+    notify(message){
+        message.channel.send(`Noted, the owner${this.owners.length > 1 ? "s" : ""} of the bot has been notified`);
+        let messageToSend = `${message.author.tag} notified you on ${message.createdTimestamp}.\nView at: ${message.url}`;
+        for(let i = 0; i < this.owners.length; i++){
+            this.client.users.fetch(this.owners[i]).then((user) => {
+                user.send(messageToSend).catch(console.error);
+            }).catch(console.error);
+        }
+        emailHandler.sendNotif(message.author, messageToSend);
+    }
 }
 
 module.exports = discordHandler;
