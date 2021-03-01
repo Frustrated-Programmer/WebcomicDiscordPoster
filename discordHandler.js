@@ -60,8 +60,30 @@ class discordHandler{
         this.client.on("error", this.onError.bind(this));
         this.client.on("disconnect", this.onDisconnect.bind(this));
         this.client.login(this.key).then().catch(this.onError.bind(this));
+        return true;
     }
-
+    check(){
+        return new Promise((cb,rj) =>{
+            log(2,`Checking Client`);
+            let reboot = true;
+            if(this.client){
+                reboot = false;
+                switch(this.client.status){
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3:
+                        reboot = true;
+                        break;
+                    default:
+                        reboot = false;
+                        break;
+                }
+            }
+            if(reboot) cb(this.reboot());
+            else cb(false);
+        });
+    }
     /**
      * On case the client disconnects from one of the few cases we run a `client.destroy()`
      */
@@ -243,17 +265,22 @@ class discordHandler{
                 date -= times[i];
             }
         }
-        let amount = "";
-        if(time[0] > 0) amount += `Days: [${time[0]}] `;
-        if(time[1] > 0) amount += `Hours: [${time[1]}] `;
-        if(time[2] > 0) amount += `Minutes: [${time[2]}] `;
-        if(time[3] > 0 && time[0] === 0) amount += `Seconds: [${time[3]}] `;
-        if(date > 0 && time[0] === 0 && time[1] === 0) amount += `Milliseconds: [${date}]`;
-
+        let amount = [];
+        let texts = ["Day","Hour","Minutes","Seconds","Milliseconds"];
+        for(let i =0;i<texts.length;i++){
+            if(time[i] > 0 &&  amount.length < 3){
+                amount.push(`${time[i]} ${texts[i]}${time[i] === 1 ? "" : "s"}`);
+            }
+        }
+        let txt = "";
+        for(let i =0;i<amount.length;i++){
+            txt += amount[i]+" ";
+            if(i+1 < amount.length) txt+="and ";
+        }
         let embed = new discord.RichEmbed()
             .setColor("#F6CD3E")
             .setTitle("Ping")
-            .addField(`Bot's been online for`, amount)
+            .addField(`Bot's been online for`, txt)
             .addField("Bot will check for comic in", getTimer());
         message.channel.send({embed});
     }
@@ -272,25 +299,23 @@ class discordHandler{
         code = code.join(` `);
 
         //embed that is sent, [ output ] will be added once output is defined
-        //and depending on [ output ] color will be set to RED/ERROR or BLUE/SUCCESS
+        //and depending on [ output ] color will be set to RED/ERROR or GREEN/SUCCESS
         let embed = new discord.RichEmbed()
             .setTitle(`Input`)
             .setDescription(`\`\`\`nx\n${code}\`\`\``)
             .setFooter(`Requested by ${message.author.tag} at ${getTime(new Date())}`, message.author.avatarURL);
 
         function clean(text){
-            if(typeof (text) === `string`)
-                return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
-            else
-                return text;
+            if(typeof (text) === `string`) return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
+            else return text;
         }
 
         try{
             let evaled = eval(code);
-            if(typeof evaled !== `string`)
-                evaled = require(`util`).inspect(evaled);
-            embed.setColor("#0000FF")
-                .addField(`Output`, `\`\`\`nx\n${clean(evaled)}\`\`\``);
+            if(typeof evaled !== `string`) evaled = require(`util`).inspect(evaled);
+            let cleaned = clean(evaled);
+            embed.setColor("#00FF00");
+            if(cleaned) embed.addField(`Output`, `\`\`\`nx\n${cleaned}\`\`\``);
         }
         catch(err){
             embed.setColor("#FF0000")
@@ -309,8 +334,8 @@ class discordHandler{
         let embed = new discord.RichEmbed();
         embed.setColor("#00FF00")
             .setTitle("About")
-            .setDescription("I am a bot designed to grab comics from http://www.thedreamlandchronicles.com/ and post them in a discord channel.")
-            .addField("GitHub repo:", "https://github.com/Frustrated-Programmer/DreamlandChroniclesDiscordBot/")
+            .setDescription(`I am a bot designed to grab comics from ${websiteHandler.downloadLocation} and post them in a discord channel.`)
+            .addField("GitHub repo:", "https://github.com/Frustrated-Programmer/WebcomicDiscordPoster/")
             .addField("Programmer:", "https://frustratedprogrammer.com")
             .setFooter("Coded by FrustratedProgrammer.");
         msg.channel.send({embed});

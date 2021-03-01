@@ -1,5 +1,3 @@
-console.log("\n\n\n\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-");
-console.log("Code started");
 global.log = function(type, text){
     if(!savedData.debugging && type < 100) return;
     if(type >= 100) type = type % 10;//Add a 100 to a type to override .debugging requirement.
@@ -72,7 +70,6 @@ global.errorHandlerCrashed = function(error){
     process.exit(1);
 };
 
-let errors = [];
 let lastRan = 0;
 global.timeout = undefined;
 global.getTimer = function(full = false){
@@ -123,6 +120,12 @@ global.checkForComic = function(repeat){
                     log(0, "No new comic found.");
                     cb(false);
                 }
+            }).then(function(){
+                log(0,"Checking Discord Client.");
+                discordHandler.check().then(function(rebooted){
+                    if(rebooted) log(0,"Client was offline, rebooted.");
+                    else log(0,"Client is still online.")
+                }).catch(rj);
             }).catch(rj);
             if(repeat){
                 lastRan = Date.now();
@@ -143,6 +146,5 @@ checkForComic(true).then(function(result){
         setTimeout(checkForComic, minutes * 60000, true);
     }).catch(errorHandlerCrashed);
 });//Check for comic on boot.
-
 
 log(0, "Index.js: Started");
