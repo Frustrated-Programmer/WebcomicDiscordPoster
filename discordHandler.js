@@ -278,8 +278,8 @@ class discordHandler{
         }
         let txt = "";
         for(let i =0;i<amount.length;i++){
+            if(txt.length && i+1 === amount.length) txt+="and ";
             txt += amount[i]+" ";
-            if(i+1 < amount.length) txt+="and ";
         }
         let embed = new discord.RichEmbed()
             .setColor("#F6CD3E")
