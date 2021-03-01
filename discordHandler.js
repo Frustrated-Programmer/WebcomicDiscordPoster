@@ -151,6 +151,7 @@ class discordHandler{
      * @param {Message} message
      */
     onMessage(message){
+        if(message.author.bot) return;
         let isAdmin = ((this.admins.filter((value) => value === message.author.id)).length !== 0);
         let isOwner = ((this.owners.filter((value) => value === message.author.id)).length !== 0);
         let mention = false;
@@ -266,11 +267,14 @@ class discordHandler{
             }
         }
         let amount = [];
-        let texts = ["Day","Hour","Minutes","Seconds","Milliseconds"];
+        let texts = ["Day","Hour","Minute","Second"];
         for(let i =0;i<texts.length;i++){
             if(time[i] > 0 &&  amount.length < 3){
                 amount.push(`${time[i]} ${texts[i]}${time[i] === 1 ? "" : "s"}`);
             }
+        }
+        if(amount.length < 3){
+            amount.push(`${date} Millisecond${date > 1 ? "s" : ""}`)
         }
         let txt = "";
         for(let i =0;i<amount.length;i++){
