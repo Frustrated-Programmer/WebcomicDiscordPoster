@@ -62,6 +62,11 @@ class discordHandler{
         this.client.login(this.key).then().catch(this.onError.bind(this));
         return true;
     }
+
+    /**
+     * Checks if the client is online, if not: reboot it.
+     * @return {Promise<boolean>}
+     */
     check(){
         return new Promise((cb,rj) =>{
             log(2,`Checking Client`);

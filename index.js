@@ -1,33 +1,4 @@
-global.log = function(type, text){
-    if(!savedData.debugging && type < 100) return;
-    if(type >= 100) type = type % 10;//Add a 100 to a type to override .debugging requirement.
-    switch(type){
-        case 0:
-            console.log("\x1b[0m[\x1b[36mINDEXJS\x1b[0m]", text);
-            break;
-        case 1:
-            console.log("\x1b[0m[\x1b[35mWEBSITE\x1b[0m]", text);
-            break;
-        case 2:
-            console.log("\x1b[0m[\x1b[32mDISCORD\x1b[0m]", text);
-            break;
-        case 3:
-            console.log("\x1b[0m[\x1b[33mEVALCMD\x1b[0m]", text);
-            break;
-        case 4:
-            console.log("\x1b[0m[\x1b[34mDAT&TIM\x1b[0m]", text);
-            break;
-        case 5:
-            console.log("\x1b[0m[\x1b[31mERROR!!\x1b[0m]", text);
-            break;
-        case 6:
-            console.log("\x1b[0m[\x1b[33mEMAIL..\x1b[0m]", text);
-            break;
-        default:
-            console.log("\x1b[0m[UNKNOWN]", type);
-            break;
-    }
-};
+require("./loggingHandler.js");
 //How often does it check for a new page.
 global.updateTimer = (((1000 * 60) * 60));//Every hour.
 global.savedData = require("./data.json");
