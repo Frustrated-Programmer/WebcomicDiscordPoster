@@ -38,6 +38,6 @@ global.log = function(type, text){
         if(text["message"]) text = text["message"];
         if(text["errno"]) text = "ErrorNum: "+text["errno"];
     }
-    console.log(`${useConsoleColors ? `\x1b[0m[${consoleColors[type]}` : "["}${logTypes[type]}${useConsoleColors ? "\x1b[0m" : ""}]`)
+    console.log(`${useConsoleColors ? `\x1b[0m[${consoleColors[type]}` : "["}${logTypes[type]}${useConsoleColors ? "\x1b[0m" : ""}]: `,text);
 };
 
