@@ -80,12 +80,15 @@ global.checkForComic = function(repeat){
         return new Promise(function(cb, rj){
             websiteHandler.getCurrentPageDate().then(function(date){
                 if(savedData.latestComic !== date){
-                    websiteHandler.getCurrentPageImgLink().then(discordHandler.sendComic.bind(discordHandler));
-                    savedData.latestComic = date;
-                    fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(){
-                        log(0, "Updated [data.json] to contain comic's current date.");
+                    websiteHandler.getCurrentPageImgLink().then(()=>{
+                        discordHandler.sendComic.bind(discordHandler).then(()=>{
+                            savedData.latestComic = date;
+                            fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(){
+                                log(0, "Updated [data.json] to contain comic's current date.");
+                            });
+                            cb(true);
+                        }).catch(rj);
                     });
-                    cb(true);
                 }
                 else{
                     log(0, "No new comic found.");

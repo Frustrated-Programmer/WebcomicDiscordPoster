@@ -68,8 +68,8 @@ class discordHandler{
      * @return {Promise<boolean>}
      */
     check(){
-        return new Promise((cb,rj) =>{
-            log(2,`Checking Client`);
+        return new Promise((cb, rj) => {
+            log(2, `Checking Client`);
             let reboot = true;
             if(this.client){
                 reboot = false;
@@ -89,6 +89,7 @@ class discordHandler{
             else cb(false);
         });
     }
+
     /**
      * On case the client disconnects from one of the few cases we run a `client.destroy()`
      */
@@ -190,34 +191,44 @@ class discordHandler{
 
 
     }
+
     shutdown(message){
         log(2, `${message.author.username}[${message.author.id}] used the [SHUTDOWN] command.`);
         this.client.destroy().then(function(){
             process.exit(0);
         }).catch(function(){
             process.exit(0);
-        })
+        });
     }
+
     /**
      * When the INDEX.JS wants to send the comic, this is ran. It looks for the channel and then sends the comic.
      * @param link
      */
     sendComic(link){
-        if(this.online === 0){
-            log(2, "Comic cannot send: Client isn't online.");
-            log(2, "Waiting for client to come online.");
-            this.awaitingComic = link;
-            return;
-        }
-        let channel = this.client.channels.get(this.channelID);
-        if(channel){
-            channel.send(contentMsg[Math.round(Math.random() * (contentMsg.length - 1))], {
-                files: [link]
-            }).then(() => {
-                log(2, `Sent latest comic page.`);
-            }).catch(this.onError.bind(this));
-        }
-        else log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
+        return new Promise((cb, rj) => {
+            if(this.online === 0){
+                log(2, "Comic cannot send: Client isn't online.");
+                log(2, "Waiting for client to come online.");
+                this.awaitingComic = link;
+                rj("Client isn't online");
+            }
+            let channel = this.client.channels.get(this.channelID);
+            if(channel){
+                channel.send(contentMsg[Math.round(Math.random() * (contentMsg.length - 1))], {
+                    files: [link]
+                }).then(() => {
+                    cb(true);
+                    log(2, `Sent latest comic page.`);
+                }).catch(()=>{
+                    this.onError.bind(this);
+                    rj();});
+            }
+            else {
+                log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
+                rj("No channel");
+            }
+        });
     }
 
     /**
@@ -272,19 +283,19 @@ class discordHandler{
             }
         }
         let amount = [];
-        let texts = ["Day","Hour","Minute","Second"];
-        for(let i =0;i<texts.length;i++){
-            if(time[i] > 0 &&  amount.length < 3){
+        let texts = ["Day", "Hour", "Minute", "Second"];
+        for(let i = 0; i < texts.length; i++){
+            if(time[i] > 0 && amount.length < 3){
                 amount.push(`${time[i]} ${texts[i]}${time[i] === 1 ? "" : "s"}`);
             }
         }
         if(amount.length < 3){
-            amount.push(`${date} Millisecond${date > 1 ? "s" : ""}`)
+            amount.push(`${date} Millisecond${date > 1 ? "s" : ""}`);
         }
         let txt = "";
-        for(let i =0;i<amount.length;i++){
-            if(txt.length && i+1 === amount.length) txt+="and ";
-            txt += amount[i]+" ";
+        for(let i = 0; i < amount.length; i++){
+            if(txt.length && i + 1 === amount.length) txt += "and ";
+            txt += amount[i] + " ";
         }
         let embed = new discord.RichEmbed()
             .setColor("#F6CD3E")
@@ -357,11 +368,9 @@ class discordHandler{
      */
     notify(message){
         message.channel.send(`Noted, the owner${this.owners.length > 1 ? "s" : ""} of the bot has been notified`);
-        let messageToSend = `${message.author.tag} notified you on ${message.createdTimestamp}.\nView at: ${message.url}`;
+        let messageToSend = `${message.author.tag} notified you on ${new Date(message.createdTimestamp)}.\nView at: ${message.url}\nMessage Contents: \n\n${message.content.substring(0, 1000)}${message.content.length > 1000 ? "(CUTOFF)" : ""}`;
         for(let i = 0; i < this.owners.length; i++){
-            this.client.users.fetch(this.owners[i]).then((user) => {
-                user.send(messageToSend).catch(console.error);
-            }).catch(console.error);
+            this.client.users.get(this.owners[i]).send(messageToSend).catch(console.error);
         }
         emailHandler.sendNotif(message.author, messageToSend);
     }
