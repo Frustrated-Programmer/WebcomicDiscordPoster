@@ -28,12 +28,14 @@ let console = {
     warn: function(){
         log(103, "[WARN] " + item);
     },
-    error: function(item){
-        log(105, item);
+    error: function(item,item2){
+        if(item !== undefined) log(105, item);
+        else log(105,item2);
     }
 };
 
-class discordHandler{
+
+class discordHandlerClass{
     constructor(options){
         options = options || {};
         this.key = options.key;
@@ -207,6 +209,7 @@ class discordHandler{
      */
     sendComic(link){
         return new Promise((cb, rj) => {
+            if(link === undefined) rj("Link isn't valid.")
             if(this.online === 0){
                 log(2, "Comic cannot send: Client isn't online.");
                 log(2, "Waiting for client to come online.");
@@ -218,11 +221,12 @@ class discordHandler{
                 channel.send(contentMsg[Math.round(Math.random() * (contentMsg.length - 1))], {
                     files: [link]
                 }).then(() => {
-                    cb(true);
                     log(2, `Sent latest comic page.`);
-                }).catch(()=>{
-                    this.onError.bind(this);
-                    rj();});
+                    cb(true);
+                }).catch((e)=>{
+                    this.onError(e);
+                    rj(e);
+                });
             }
             else {
                 log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
@@ -376,4 +380,4 @@ class discordHandler{
     }
 }
 
-module.exports = discordHandler;
+module.exports = discordHandlerClass;

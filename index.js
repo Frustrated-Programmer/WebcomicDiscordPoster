@@ -78,28 +78,24 @@ global.checkForComic = function(repeat){
     try{
         log(0, "Checking for comic.");
         return new Promise(function(cb, rj){
-            websiteHandler.getCurrentPageDate().then(function(date){
+            websiteHandler.getCurrentPageDate()
+                .then(function(date){
                 if(savedData.latestComic !== date){
-                    websiteHandler.getCurrentPageImgLink().then(()=>{
-                        discordHandler.sendComic.bind(discordHandler).then(()=>{
+                    websiteHandler.getCurrentPageImgLink().then((result)=>{
+                       let sendComicFunc = discordHandler.sendComic.bind(discordHandler)
+                       sendComicFunc(result).then(()=>{
                             savedData.latestComic = date;
                             fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(){
                                 log(0, "Updated [data.json] to contain comic's current date.");
                             });
                             cb(true);
                         }).catch(rj);
-                    });
+                    }).catch(rj);
                 }
                 else{
                     log(0, "No new comic found.");
                     cb(false);
                 }
-            }).then(function(){
-                log(0,"Checking Discord Client.");
-                discordHandler.check().then(function(rebooted){
-                    if(rebooted) log(0,"Client was offline, rebooted.");
-                    else log(0,"Client is still online.")
-                }).catch(rj);
             }).catch(rj);
             if(repeat){
                 lastRan = Date.now();
