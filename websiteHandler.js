@@ -5,25 +5,46 @@
  *  But without an API this is the best I can do.
  */
 const fetch = require("node-fetch");
+const fs = require("fs");
 
 class websiteHandler{
-    constructor(){
-        this.downloadLocation = "http://www.thedreamlandchronicles.com/";//The bot is currently setup for this domain.
+    constructor(savedData){
         log(1, "WebsiteHandler: READY.");
+        this.data = savedData && savedData.websiteHandlerData || {
+            link: "http://www.thedreamlandchronicles.com/", //The bot is currently setup for this domain.
+            increment: 0
+        };
+        this.getDownloadLocation();
     }
-
+    comicWasPosted(){
+        return new Promise((cb,rj) => {
+            this.data.previouslyPostedLink = this.getDownloadLocation();
+            this.data.increment++;
+            savedData.websiteHandlerData = this.data;
+            fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(e){
+                if(e) rj(e);
+                log(1, "Updated [data.json] to contain updated websiteHandlerData.");
+                cb();
+            });
+        })
+    }
+    getDownloadLocation(){
+        this.data.link = "http://www.thedreamlandchronicles.com/";
+        return this.data.link;
+    }
     /**
      * Gets the pure HTML from the comic's page.
      * @return {Promise<string>}
      */
     getCurrentPageHTML(){
         return new Promise((cb, rj) => {
+            this.getDownloadLocation();
             log(1, "Checking HTML");
             log(4, (new Date()).toString());
-            fetch(this.downloadLocation)
+            fetch(this.data.link)
                 .then((result) => {
                     if(result){
-                        log(1, "Successfully retrieved HTML for: " + this.downloadLocation);
+                        log(1, "Successfully retrieved HTML for: " + this.data.link);
                         result.text().then(cb).catch(rj);
                     }
                     else{
@@ -37,8 +58,9 @@ class websiteHandler{
      * Gets the date & time embedded in the HTML.
      * @return {Promise<string>}
      */
-    getCurrentPageDate(){
+    getCurrentPageDifferential(){
         return new Promise((cb, rj) => {
+            this.getDownloadLocation();
             this.getCurrentPageHTML().then((HTML) => {
                 HTML = HTML.replace(/\s+/g, "");
                 HTML = HTML.replace(/\t+/g, "");
@@ -58,6 +80,7 @@ class websiteHandler{
      */
     getCurrentPageImgLink(){
         return new Promise((cb, rj) => {
+            this.getDownloadLocation();
             this.getCurrentPageHTML().then((HTML) => {
                 HTML = HTML.replace(/\s+/g, "");
                 HTML = HTML.replace(/\t+/g, "");

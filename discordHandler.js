@@ -148,7 +148,7 @@ class discordHandlerClass{
             else log(2, `Unable to find channel that stored reboot msg. rebootMsg.c: ${this.rebootMsg.c}`);
         }
         if(this.awaitingComic){
-            log(2, "Sending comic.");
+            log(2, "Sending awaiting comic.");
             this.sendComic(this.awaitingComic);
             this.awaitingComic = false;
         }
@@ -205,32 +205,57 @@ class discordHandlerClass{
 
     /**
      * When the INDEX.JS wants to send the comic, this is ran. It looks for the channel and then sends the comic.
-     * @param link
+     * @param data Object
+     * @param data.imageLink String
+     * @param data.websiteLink String
      */
-    sendComic(link){
+    sendComic(data={}){
         return new Promise((cb, rj) => {
-            if(link === undefined) rj("Link isn't valid.")
-            if(this.online === 0){
-                log(2, "Comic cannot send: Client isn't online.");
-                log(2, "Waiting for client to come online.");
-                this.awaitingComic = link;
-                rj("Client isn't online");
+            try{
+                if(data === undefined) rj("Link isn't valid.")
+                if(this.online === 0){
+                    log(2, "Comic cannot send: Client isn't online.");
+                    log(2, "Waiting for client to come online.");
+                    this.awaitingComic = data;
+                    cb();
+                }
+                let channel = this.client.channels.get(this.channelID);
+                if(channel){
+                    let actualSendComic = () => {
+                        let embed = new discord.RichEmbed()
+                            .setColor("#0A5BD7")
+                            .setTitle("New Dreamland Chronicles Comic")
+                            .setDescription(contentMsg[Math.round(Math.random() * (contentMsg.length - 1))])
+                            .setThumbnail(data.imageLink)
+                            .setURL(data.websiteLink)
+                            .addField("\u200B", `[View it on the website.](${data.websiteLink})${data.extra ? `\n[Go to previously posted.](${data.extra})` : ""}`);
+                        channel.send({embed}).then(() => {
+                            log(2, `Sent latest comic page.`);
+                            cb(true);
+                        }).catch((e) => {
+                            this.onError(e);
+                            rj(e);
+                        });
+                    }
+                    if(savedData.pingEveryone === 1 || savedData.pingEveryone === 2){
+                        channel.send("@everyone").then((msg)=>{
+                            if(savedData.pingEveryone === 2){
+                                msg.delete();
+                            }
+                            actualSendComic();
+                        }).catch(rj);
+                    }
+                    else actualSendComic();
+
+                }
+                else{
+                    log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
+                    rj("No channel");
+                }
+
             }
-            let channel = this.client.channels.get(this.channelID);
-            if(channel){
-                channel.send(contentMsg[Math.round(Math.random() * (contentMsg.length - 1))], {
-                    files: [link]
-                }).then(() => {
-                    log(2, `Sent latest comic page.`);
-                    cb(true);
-                }).catch((e)=>{
-                    this.onError(e);
-                    rj(e);
-                });
-            }
-            else {
-                log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
-                rj("No channel");
+            catch(e){
+                rj(e);
             }
         });
     }
@@ -258,7 +283,7 @@ class discordHandlerClass{
     checkComic(message){
         log(2, `${message.author.username}[${message.author.id}] used the [checkForComic] command.`);
         message.channel.send("🔍 Searching...").then((m) => {
-            checkForComic().then(function(found){
+            checkForComic(false,"Discord,1").then(function(found){
                 if(!found) m.edit("🚫 No new comic found.");
                 else m.delete();
             }).catch(console.error);

@@ -1,7 +1,7 @@
 require("./loggingHandler.js");
 //How often does it check for a new page.
 global.updateTimer = (((1000 * 60) * 60));//Every hour.
-global.savedData = require("./data.json");
+global.savedData = require("./data - used.json");
 log(4, (new Date()).toString());
 
 const fs = require("fs");
@@ -40,7 +40,7 @@ global.errorHandlerCrashed = function(error){
     console.error(error);
     process.exit(1);
 };
-
+savedData.latestComic = "February7,2022,7:53pm";
 let lastRan = 0;
 global.timeout = undefined;
 global.getTimer = function(full = false){
@@ -73,22 +73,27 @@ global.getTimer = function(full = false){
     if((timeTill > 0 && time[0] === 0 && time[1] === 0) || full) addToAmount(`${timeTill} Milliseconds`, true);
     return amount;
 };
-global.checkForComic = function(repeat){
-    clearTimeout(timeout);
-    try{
-        log(0, "Checking for comic.");
-        return new Promise(function(cb, rj){
-            websiteHandler.getCurrentPageDate()
-                .then(function(date){
+global.checkForComic = function(repeat=false,where){
+    log(0,where)
+    log(0, "Checking for comic.");
+    return new Promise(function(cb, rj){
+        try{
+            websiteHandler.getCurrentPageDifferential().then(function(date){
                 if(savedData.latestComic !== date){
                     websiteHandler.getCurrentPageImgLink().then((result)=>{
-                       let sendComicFunc = discordHandler.sendComic.bind(discordHandler)
-                       sendComicFunc(result).then(()=>{
+                        discordHandler.sendComic.bind(discordHandler)({
+                            imageLink: result,
+                            websiteLink: websiteHandler.getDownloadLocation(),
+                           // extra:savedData.websiteHandlerData.previouslyPostedLink,
+                        }).then(()=>{
+                            websiteHandler.comicWasPosted().then(()=>{
                             savedData.latestComic = date;
-                            fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(){
-                                log(0, "Updated [data.json] to contain comic's current date.");
-                            });
-                            cb(true);
+                            fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(e){
+                                if(e) rj(e);
+                                    log(0, "Updated [data.json] to contain comic's current date.");
+                                    cb(true);
+                                });
+                            }).catch(rj);
                         }).catch(rj);
                     }).catch(rj);
                 }
@@ -98,23 +103,27 @@ global.checkForComic = function(repeat){
                 }
             }).catch(rj);
             if(repeat){
+                clearTimeout(timeout);
                 lastRan = Date.now();
-                timeout = setTimeout(checkForComic, updateTimer, true);
+                timeout = setTimeout(checkForComic, updateTimer, [true,"CheckForComik's Repeat"]);
             }
-        });
-    }
-    catch(e){
-        errorHandler.onError(e).then(function(minutes){
-            setTimeout(checkForComic, minutes * 60000, repeat);
-        }).catch(errorHandlerCrashed);
-    }
+        }
+        catch(e){
+            errorHandler.onError(e).then(function(minutes){
+                setTimeout(checkForComic, minutes * 60000, [repeat,"CheckForComik's Error"]);
+            }).catch(errorHandlerCrashed);
+        }
+    });
+
 };
-checkForComic(true).then(function(result){
+
+
+log(0, "Index.js: Started");
+checkForComic(true,"IndexJS,1").then(function(result){
     log(0, "Check for comic success: " + result);
 }).catch(function(e){
     errorHandler.onError(e).then(function(minutes){
-        setTimeout(checkForComic, minutes * 60000, true);
+        setTimeout(checkForComic, minutes * 60000, [true,"IndexJS,2"]);
     }).catch(errorHandlerCrashed);
 });//Check for comic on boot.
 
-log(0, "Index.js: Started");

@@ -14,6 +14,10 @@
 	"auth": {
 		"user": "",
 		"pass": ""
+	},
+	"websiteHandlerData": {
+		"link": "http://www.thedreamlandchronicles.com/",
+		"increment": 12,
+		"previouslyPostedLink": "http://www.thedreamlandchronicles.com/"
 	}
-	
 }

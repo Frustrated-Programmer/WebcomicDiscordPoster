@@ -6,7 +6,11 @@
  * Make sure the code has permission can write to `data.json`.
  * Update `data.json` to have the key items.
  * Run `index.js` in a terminal via `node index.js`
- * go to your comic's domain page and find a way to access the latest comic every single time. (generally homepage) Then go into `websiteHandler.js` and edit `getCurrentPageImgLink` & `getCurrentPageDate` to extract the info from the page.
+ * go to your comic's domain page and find a way to access the latest comic every single time. (generally homepage) Then go into `websiteHandler.js` and edit:
+   * `getCurrentPageImgLink` - To grab the page's IMAGE url,
+   * `getCurrentPageDifferential` to extract the info from the page that tells it whether this page is different from the last(I recommend date).
+   * `getDownloadLocation` to tell the handler what is the link to extract the data from. (use the passed in object to store incrementals in case the link changes whenever a comic is posted, Eg: _comic/page1.html, comic/page2.html, comic/page3.html_)
+   * `comicWasPosted` to add to any increments in case website's link changes per comic. 
  * *If you need help on the last step lemme know so I can help, it's a difficult step.*
 
 ### data.json
@@ -27,7 +31,8 @@
     "auth": {
         "user": "",
         "pass": ""
-    }
+    },
+    "websiteHandlerData": {}
 }
 ```
 And `key` and `channelID` ***have*** to have a value.
@@ -39,7 +44,8 @@ And `key` and `channelID` ***have*** to have a value.
  - `latestComic` The date of the latest comic. The bot updates this to prevent posting the same comic twice in case a comic isn't posted during it's update period.
  - `useEmailHandler` Whether or not to try to send an email whenever the bot errors or something bad happens. 
  - `host`,`port`,`sender`,`reciever`, `auth.user`, & `auth.pass` are only required if `useEmailHandler` is set to true. If so, Further instructions are supplied later.
- 
+ - `websiteHandlerData` can be whatever you need. It gets passed in to the websiteHandler for your customization, and is saved with every comic posted
+ - `pingEveryone` can be 0 for no, 1 for yes, 2 to ghost ping everyone.
  ### Email Handler
  You can learn more about how to use the API I am using called [nodemailer](nodemailer.com/about
  ).<br>If you decide to have `useEmailHandler` in the `data.json` set to true, the following will need to be filled out depending on your transport method:
