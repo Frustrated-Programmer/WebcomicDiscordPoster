@@ -40,7 +40,6 @@ global.errorHandlerCrashed = function(error){
     console.error(error);
     process.exit(1);
 };
-savedData.latestComic = "February7,2022,7:53pm";
 let lastRan = 0;
 global.timeout = undefined;
 global.getTimer = function(full = false){
