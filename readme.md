@@ -32,7 +32,8 @@
         "user": "",
         "pass": ""
     },
-    "websiteHandlerData": {}
+    "websiteHandlerData": {},
+    "pingEveryone": 0
 }
 ```
 And `key` and `channelID` ***have*** to have a value.
