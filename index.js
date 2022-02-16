@@ -1,7 +1,7 @@
 require("./loggingHandler.js");
 //How often does it check for a new page.
 global.updateTimer = (((1000 * 60) * 60));//Every hour.
-global.savedData = require("./data - used.json");
+global.savedData = require("./data.json");
 log(4, (new Date()).toString());
 
 const fs = require("fs");
@@ -72,44 +72,32 @@ global.getTimer = function(full = false){
     if((timeTill > 0 && time[0] === 0 && time[1] === 0) || full) addToAmount(`${timeTill} Milliseconds`, true);
     return amount;
 };
-global.checkForComic = function(repeat=false,where){
-    log(0,where)
+global.checkForComic = function(repeat=false){
     log(0, "Checking for comic.");
     return new Promise(function(cb, rj){
         try{
-            websiteHandler.getCurrentPageDifferential().then(function(date){
-                if(savedData.latestComic !== date){
-                    websiteHandler.getCurrentPageImgLink().then((result)=>{
-                        discordHandler.sendComic.bind(discordHandler)({
-                            imageLink: result,
-                            websiteLink: websiteHandler.getDownloadLocation(),
-                           // extra:savedData.websiteHandlerData.previouslyPostedLink,
-                        }).then(()=>{
-                            websiteHandler.comicWasPosted().then(()=>{
-                            savedData.latestComic = date;
-                            fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(e){
-                                if(e) rj(e);
-                                    log(0, "Updated [data.json] to contain comic's current date.");
-                                    cb(true);
-                                });
-                            }).catch(rj);
-                        }).catch(rj);
-                    }).catch(rj);
-                }
-                else{
+            websiteHandler.getComicPages().then(function(result){
+                if(result === false){
                     log(0, "No new comic found.");
                     cb(false);
+                }
+                else{
+                    discordHandler.sendComic.bind(discordHandler)(result).then(()=>{
+                        websiteHandler.comicWasPosted().then(()=>{
+                            cb(true);
+                        }).catch(rj);
+                    }).catch(rj);
                 }
             }).catch(rj);
             if(repeat){
                 clearTimeout(timeout);
                 lastRan = Date.now();
-                timeout = setTimeout(checkForComic, updateTimer, [true,"CheckForComik's Repeat"]);
+                timeout = setTimeout(checkForComic, updateTimer, repeat);
             }
         }
         catch(e){
             errorHandler.onError(e).then(function(minutes){
-                setTimeout(checkForComic, minutes * 60000, [repeat,"CheckForComik's Error"]);
+                setTimeout(checkForComic, minutes * 60000, repeat);
             }).catch(errorHandlerCrashed);
         }
     });
@@ -118,11 +106,11 @@ global.checkForComic = function(repeat=false,where){
 
 
 log(0, "Index.js: Started");
-checkForComic(true,"IndexJS,1").then(function(result){
+checkForComic(true).then(function(result){
     log(0, "Check for comic success: " + result);
 }).catch(function(e){
     errorHandler.onError(e).then(function(minutes){
-        setTimeout(checkForComic, minutes * 60000, [true,"IndexJS,2"]);
+        setTimeout(checkForComic, minutes * 60000, true);
     }).catch(errorHandlerCrashed);
 });//Check for comic on boot.
 

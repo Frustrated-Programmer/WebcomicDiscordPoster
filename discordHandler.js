@@ -6,7 +6,8 @@
  */
 const discord = require("discord.js");
 const fs = require("fs");
-let contentMsg = ["Hey @everyone, a new Dreamland Comic has been posted:", "@everyone, please turn your attention to the new Dreamland Comic:", "Attention @everyone, a new Dreamland Comic:"];
+let aComicPostedMsg = ["Hey @everyone, a new Dreamland Comic has been posted:","@everyone, please turn your attention to the new Dreamland Comic:", "Attention @everyone, a new Dreamland Comic:"];
+let multipleComicsPostedMsg = ["Hey @everyone, {num} new Dreamland Comics has been posted:","@everyone, please turn your attention to the {num} new Dreamland Comics:", "Attention @everyone, {num} new Dreamland Comics:"]
 
 /**
  * Get a formatted version of Date & Time.
@@ -205,37 +206,59 @@ class discordHandlerClass{
 
     /**
      * When the INDEX.JS wants to send the comic, this is ran. It looks for the channel and then sends the comic.
-     * @param data Object
-     * @param data.imageLink String
-     * @param data.websiteLink String
+     * @param retrievedData Object
+     * @param retrievedData.imageLink String
+     * @param retrievedData.websiteLink String
      */
-    sendComic(data={}){
+    sendComic(retrievedData={}){
         return new Promise((cb, rj) => {
             try{
-                if(data === undefined) rj("Link isn't valid.")
+                if(retrievedData === undefined) rj("Link isn't valid.")
                 if(this.online === 0){
                     log(2, "Comic cannot send: Client isn't online.");
                     log(2, "Waiting for client to come online.");
-                    this.awaitingComic = data;
+                    this.awaitingComic = retrievedData;
                     cb();
                 }
                 let channel = this.client.channels.get(this.channelID);
                 if(channel){
                     let actualSendComic = () => {
-                        let embed = new discord.RichEmbed()
-                            .setColor("#0A5BD7")
-                            .setTitle("New Dreamland Chronicles Comic")
-                            .setDescription(contentMsg[Math.round(Math.random() * (contentMsg.length - 1))])
-                            .setThumbnail(data.imageLink)
-                            .setURL(data.websiteLink)
-                            .addField("\u200B", `[View it on the website.](${data.websiteLink})${data.extra ? `\n[Go to previously posted.](${data.extra})` : ""}`);
-                        channel.send({embed}).then(() => {
-                            log(2, `Sent latest comic page.`);
-                            cb(true);
-                        }).catch((e) => {
-                            this.onError(e);
-                            rj(e);
-                        });
+                        if(retrievedData.images.length > 1){
+                            let textInsert = "";
+                            for(let i =0;i<retrievedData.links.length;i++){
+                                textInsert+=`[View new comic #${i+1}](${retrievedData.links[i]})${i+1 < retrievedData.links.length ? "\n" : ""}`
+                            }
+                            let embed = new discord.RichEmbed()
+                                .setColor("#0A5BD7")
+                                .setTitle(`${retrievedData.images.length} new Dreamland Chronicles Comics`)
+                                .setDescription((multipleComicsPostedMsg[Math.round(Math.random() * (multipleComicsPostedMsg.length - 1))]).replace("{num}",retrievedData.images.length))
+                                .setThumbnail(retrievedData.images[0])
+                                .setURL(retrievedData.links[0])
+                                .addField("\u200B", `${textInsert}${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
+                            channel.send({embed}).then(() => {
+                                log(2, `Sent latest comic page.`);
+                                cb(true);
+                            }).catch((e) => {
+                                this.onError(e);
+                                rj(e);
+                            });
+                        }
+                        else{
+                            let embed = new discord.RichEmbed()
+                                .setColor("#0A5BD7")
+                                .setTitle("New Dreamland Chronicles Comic")
+                                .setDescription(aComicPostedMsg[Math.round(Math.random() * (aComicPostedMsg.length - 1))])
+                                .setThumbnail(retrievedData.images[0])
+                                .setURL(retrievedData.links[0])
+                                .addField("\u200B", `[View it on the website.](${retrievedData.websiteLink})${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
+                            channel.send({embed}).then(() => {
+                                log(2, `Sent latest comic page.`);
+                                cb(true);
+                            }).catch((e) => {
+                                this.onError(e);
+                                rj(e);
+                            });
+                        }
                     }
                     if(savedData.pingEveryone === 1 || savedData.pingEveryone === 2){
                         channel.send("@everyone").then((msg)=>{
@@ -283,7 +306,7 @@ class discordHandlerClass{
     checkComic(message){
         log(2, `${message.author.username}[${message.author.id}] used the [checkForComic] command.`);
         message.channel.send("🔍 Searching...").then((m) => {
-            checkForComic(false,"Discord,1").then(function(found){
+            checkForComic(false).then(function(found){
                 if(!found) m.edit("🚫 No new comic found.");
                 else m.delete();
             }).catch(console.error);

@@ -22,7 +22,6 @@
     "owners": [""],
     "channelID":"",
     "debugging":true,
-    "latestComic":"",
 	"useEmailHandler": false,
     "host": "",
     "port": 0,
@@ -42,7 +41,6 @@ And `key` and `channelID` ***have*** to have a value.
  - `owners` An array of Discord User IDs. (These are users who can run the eval command)
  - `channelID` An ID to the channel that the bot will post the picture to.
  - `debugging` A boolean. Changes whether the bot logs what it's doing or not.
- - `latestComic` The date of the latest comic. The bot updates this to prevent posting the same comic twice in case a comic isn't posted during it's update period.
  - `useEmailHandler` Whether or not to try to send an email whenever the bot errors or something bad happens. 
  - `host`,`port`,`sender`,`reciever`, `auth.user`, & `auth.pass` are only required if `useEmailHandler` is set to true. If so, Further instructions are supplied later.
  - `websiteHandlerData` can be whatever you need. It gets passed in to the websiteHandler for your customization, and is saved with every comic posted

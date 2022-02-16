@@ -16,11 +16,17 @@ class websiteHandler{
         };
         this.getDownloadLocation();
     }
+
+    /**
+     * Is ran everytime a comic gets posted to the discord.
+     * @return {Promise<undefined>}
+     */
     comicWasPosted(){
         return new Promise((cb,rj) => {
             this.data.previouslyPostedLink = this.getDownloadLocation();
-            this.data.increment++;
+            this.incrementComicValue();//IMPORTANT
             savedData.websiteHandlerData = this.data;
+            this.getDownloadLocation();
             fs.writeFile("data.json", JSON.stringify(savedData, null, 4), function(e){
                 if(e) rj(e);
                 log(1, "Updated [data.json] to contain updated websiteHandlerData.");
@@ -28,17 +34,31 @@ class websiteHandler{
             });
         })
     }
+
+    /**
+     * Gets ran EVERY time a comic gets posted. Update whatever increment you use in websiteHandler.getDownloadLocation()
+     */
+    deincrementComicValue(){
+        this.data.increment--;
+    }
+    incrementComicValue(){
+        this.data.increment++;
+    }
+    /**
+     * Gets the download location.
+     * @return {string}
+     */
     getDownloadLocation(){
-        this.data.link = "http://www.thedreamlandchronicles.com/";
+        this.data.link = `http://www.thedreamlandchronicles.com/comic/the-dreamland-chronicles-page-${this.data.increment}/`;
         return this.data.link;
     }
+
     /**
      * Gets the pure HTML from the comic's page.
      * @return {Promise<string>}
      */
     getCurrentPageHTML(){
         return new Promise((cb, rj) => {
-            this.getDownloadLocation();
             log(1, "Checking HTML");
             log(4, (new Date()).toString());
             fetch(this.data.link)
@@ -60,7 +80,6 @@ class websiteHandler{
      */
     getCurrentPageDifferential(){
         return new Promise((cb, rj) => {
-            this.getDownloadLocation();
             this.getCurrentPageHTML().then((HTML) => {
                 HTML = HTML.replace(/\s+/g, "");
                 HTML = HTML.replace(/\t+/g, "");
@@ -68,7 +87,7 @@ class websiteHandler{
                 HTML = HTML.substring(0, HTML.indexOf("</span><divclass=\"comic-post-info\">"));
                 HTML = HTML.substring(HTML.indexOf("<spanclass=\"posted-on\">on&nbsp;</span><spanclass=\"post-date\">") + 61, HTML.length);
                 HTML = HTML.replace("</span><spanclass=\"posted-at\">at&nbsp;</span><spanclass=\"post-time\">", ",");
-                log(1, "Successfully retrieved comic's date: " + HTML);
+                log(1, "Successfully retrieved comic's differential: " + HTML);
                 cb(HTML);
             }).catch(rj);
         });
@@ -80,11 +99,14 @@ class websiteHandler{
      */
     getCurrentPageImgLink(){
         return new Promise((cb, rj) => {
-            this.getDownloadLocation();
             this.getCurrentPageHTML().then((HTML) => {
                 HTML = HTML.replace(/\s+/g, "");
                 HTML = HTML.replace(/\t+/g, "");
-                HTML = HTML.substring(HTML.indexOf("<divid=\"comic\">"), HTML.length);
+                if(HTML.indexOf("<divid=\"comic\">") === -1) {
+                    cb(false);
+                    return;
+                }
+                console.log(HTML.indexOf("<divid=\"comic\">") === -1)
                 HTML = HTML.substring(0, HTML.indexOf("></a></div>"));
                 HTML = HTML.substring(HTML.indexOf("<imgsrc=\"") + 9, HTML.length);
                 HTML = HTML.substring(0, HTML.indexOf(".jpg") + 4);
@@ -92,6 +114,64 @@ class websiteHandler{
                 cb(HTML);
             }).catch(rj);
         });
+    }
+
+    /**
+     * Checks and then gets any new comic pages.
+     * Returns FALSE is no new comic is available
+     * otherwise returns an object containing 2 arrays of all the new comics as well as anything extra.
+     * @return {Promise<boolean|object>}
+     */
+    getComicPages(){
+        return new Promise((cb,rj)=>{
+            let returnData = {
+                images:[],
+                links:[],
+                extra:savedData.websiteHandlerData.previouslyPostedLink
+            }
+            let lastCheckedPage = this.data.previouslyPostedLink;
+            let getPage = ()=>{
+                return new Promise((cb,rj)=>{
+                    this.getDownloadLocation();
+                    this.getCurrentPageDifferential().then((result)=>{
+                        if(lastCheckedPage !== result){
+                            lastCheckedPage = result;
+                            this.getCurrentPageImgLink().then((result) => {
+                                if(typeof result === "string"){
+                                    returnData.images.push(result);
+                                    returnData.links.push(this.data.link);
+                                    cb(true);
+                                }
+                                else cb(false);
+
+                            }).catch(rj);
+                        }
+                        else cb(false);
+                    }).catch(rj);
+                })
+            }
+            let repeater = ()=>{
+                getPage().then((result)=>{
+                    if(!result && returnData.images.length === 0) {
+                        this.deincrementComicValue();
+                        this.getDownloadLocation();
+                        cb(false);
+                    }
+                    else if(!result) {
+                        this.deincrementComicValue();
+                        this.getDownloadLocation();
+                        cb(returnData);
+                    }
+                    else {
+                        this.incrementComicValue();
+                        repeater();
+                    }
+                }).catch(rj);
+            }
+            repeater();
+
+
+        })
     }
 }
 
