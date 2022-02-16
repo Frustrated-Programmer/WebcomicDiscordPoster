@@ -106,7 +106,6 @@ class websiteHandler{
                     cb(false);
                     return;
                 }
-                console.log(HTML.indexOf("<divid=\"comic\">") === -1)
                 HTML = HTML.substring(0, HTML.indexOf("></a></div>"));
                 HTML = HTML.substring(HTML.indexOf("<imgsrc=\"") + 9, HTML.length);
                 HTML = HTML.substring(0, HTML.indexOf(".jpg") + 4);
