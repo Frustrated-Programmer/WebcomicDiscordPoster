@@ -152,7 +152,6 @@ class websiteHandler{
             let repeater = ()=>{
                 getPage().then((result)=>{
                     if(!result && returnData.images.length === 0) {
-                        this.deincrementComicValue();
                         this.getDownloadLocation();
                         cb(false);
                     }
