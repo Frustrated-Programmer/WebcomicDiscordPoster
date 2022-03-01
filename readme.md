@@ -20,6 +20,7 @@
     "key":"",
     "admins":[""],
     "owners": [""],
+	"updateTimer": "",
     "channelID":"",
     "debugging":true,
 	"useEmailHandler": false,
@@ -39,6 +40,7 @@ And `key` and `channelID` ***have*** to have a value.
  - `key` The key to the Discord bot.
  - `admins` An array of Discord User IDs. (These are users who can run the 3 commands)
  - `owners` An array of Discord User IDs. (These are users who can run the eval command)
+ - `updateTimer` After how many milliseconds should the bot check for the comic?. (86400000 = once per day)
  - `channelID` An ID to the channel that the bot will post the picture to.
  - `debugging` A boolean. Changes whether the bot logs what it's doing or not.
  - `useEmailHandler` Whether or not to try to send an email whenever the bot errors or something bad happens. 

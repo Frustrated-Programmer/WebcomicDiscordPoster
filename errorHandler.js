@@ -16,8 +16,9 @@ class errorHandler{
      * @return {Promise<number>}
      */
     onError(error){
-        return new Promise((cb, rj) => {
+        return new Promise((cb) => {
             log(5, error);
+            console.error(error)
             this.trackError(error);
             let minutes = this.errors.length + (this.errors.length - 1);
             if(this.errors.length <= 10){

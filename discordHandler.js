@@ -5,20 +5,19 @@
  * and of course when prompted send the Comic Strip to the desired channel.
  */
 const discord = require("discord.js");
-const fs = require("fs");
-let aComicPostedMsg = ["Hey @everyone, a new Dreamland Comic has been posted:","@everyone, please turn your attention to the new Dreamland Comic:", "Attention @everyone, a new Dreamland Comic:"];
-let multipleComicsPostedMsg = ["Hey @everyone, {num} new Dreamland Comics has been posted:","@everyone, please turn your attention to the {num} new Dreamland Comics:", "Attention @everyone, {num} new Dreamland Comics:"]
+let aComicPostedMsg = ["Hey @everyone, a new Dreamland Comic has been posted:", "@everyone, please turn your attention to the new Dreamland Comic:", "Attention @everyone, a new Dreamland Comic:"];
+let multipleComicsPostedMsg = ["Hey @everyone, {num} new Dreamland Comics has been posted:", "@everyone, please turn your attention to the {num} new Dreamland Comics:", "Attention @everyone, {num} new Dreamland Comics:"];
 
 /**
  * Get a formatted version of Date & Time.
- * @param {DateConstructor} time
+ * @param {Date} time
  * @return {string}
  */
 function getTime(time){
-    let mins = time.getMinutes();
-    let minutes = `00`;
-    minutes = minutes.substring(`${mins}`.length);
-    return `${`${time.getHours() > 12 ? time.getHours() - 12 : time.getHours()}:${minutes}${mins} ${time.getHours() > 12 ? `PM` : `AM`}`}`;
+    let minutes = time.getMinutes();
+    let minutesText = `00`;
+    minutesText = minutesText.substring(`${minutes}`.length);
+    return `${time.getHours() > 12 ? time.getHours() - 12 : time.getHours()}:${minutesText}${minutes} ${time.getHours() > 12 ? `PM` : `AM`}`;
 }
 
 //Used in case the eval command uses a console.log .error or .warn The .dir is left due to me not wanting to try to reproduce it.
@@ -26,15 +25,169 @@ let console = {
     log: function(item){
         log(103, item);
     },
-    warn: function(){
+    warn: function(item){
         log(103, "[WARN] " + item);
     },
-    error: function(item,item2){
+    error: function(item, item2){
         if(item !== undefined) log(105, item);
-        else log(105,item2);
+        else log(105, item2);
     }
 };
 
+class command{
+    constructor(permissions, func, names){
+        if(typeof names === "string") names = [names];
+        this.name = names.splice(0, 1);
+        this.alias = names;
+        this.permission = permissions;
+        switch(this.permission){
+            default:
+                this.noPerms = "Something went wrong. Couldn't run the command.";
+                break;
+            case 1:
+                this.noPerms = "I'm sorry, but only Admins of the bot can use this command";
+                break;
+            case 2:
+                this.noPerms = "I'm sorry, but only Owners of the bot can use this command";
+                break;
+        }
+        this._func = func;
+    }
+
+    hasPermission(user){
+        switch(this.permission){
+            case 0://EVERYONE
+                return true;
+            case 1://ADMIN
+                return ((discordHandler.admins.filter((value) => value === user.id)).length !== 0);//Admins are allowed to do commands, (people that aren't admins, can't do ANY commands)
+            case 2://OWNER
+                return ((discordHandler.owners.filter((value) => value === user.id)).length !== 0);//Owners are allowed to do EXTREME commands, such as eval
+            default:
+                return false;
+        }
+    }
+
+    run(message, context){
+        if(typeof this._func === "function"){
+            log(2, `${message.author.username}[${message.author.id}] used the [${this.name}] command.`);
+            return this._func(message, context);
+        }
+        else return false;
+    }
+
+    _resolveAlias(){
+        for(let j = 0; j < this.alias.length; j++){
+            if(typeof commands[this.alias[j]] !== "function"){
+                commands[this.alias[j]] = commands[this.name];
+            }
+        }
+    }
+}
+
+let commands = {
+    // Gives basic info about the bot's uptime.
+    ping: new command(0, function(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [PING] command.`);
+        let txt = convertTimeToText(Date.now() - this.online);
+        let embed = new discord.MessageEmbed()
+            .setColor("#F6CD3E")
+            .setTitle("Ping")
+            .addField(`Bot's been online for`, txt)
+            .addField("Bot will check for comic in", getTimer());
+        message.channel.send({embed});
+    }, "ping"),
+    // To restart JUST the discord client, all other code still runs.
+    restart: new command(1, function(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [RESTART] command.`);
+        message.channel.send("🔃 Rebooting...").then((m) => {
+            log(2, "Shutting down client.");
+            this.rebootMsg = {m: m.id, c: m.channel.id};
+            this.online = 0;
+            this.client.destroy();
+            setTimeout(this.reboot.bind(this), 5000);
+        }).catch(this.reboot);
+    }, "restart"),
+    // Shutdown the ENTIRE process, not just the Discord Client. (Accessible by only Owners)
+    shutdown: new command(2, function(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [SHUTDOWN] command.`);
+        discordHandler.client.destroy();
+        process.exit(0);
+    }, "shutdown"),
+    // It forces a check for a new comic instead of waiting for the timer to run out.
+    checkforcomic: new command(1, function(message){
+        message.channel.send("🔍 Searching...").then((m) => {
+            checkForComic(false).then(function(found){
+                if(!found) m.edit("🚫 No new comic found.");
+                else m.delete();
+            }).catch(console.error);
+        }).catch(console.error);
+    }, "checkForComic"),
+    // Runs pure code via an `Eval()` then returns the result.
+    eval: new command(2, function(message){
+        log(2, `${message.author.username}[${message.author.id}] used the [EVAL] command.`);
+        //Since @context is all lowercase, we need to re-get the arguments without lowercasing them.
+        let code = message.content.split(` `);
+        code.shift();
+        code.shift();
+        code = code.join(` `);
+
+        //embed that is sent, [ output ] will be added once output is defined
+        //and depending on [ output ] color will be set to RED/ERROR or GREEN/SUCCESS
+        let embed = new discord.MessageEmbed()
+            .setTitle(`Input`)
+            .setDescription(`\`\`\`nx\n${code}\`\`\``)
+            .setFooter({text: `Requested by ${message.author.tag} at ${getTime(new Date())}`, iconURL: message.author.avatarURL()});
+
+        function clean(text){
+            if(typeof (text) === `string`) return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
+            else return text;
+        }
+
+        try{
+            let evaled = eval(code);
+            if(typeof evaled !== `string`) evaled = require(`util`).inspect(evaled);
+            let cleaned = clean(evaled);
+            embed.setColor("#00FF00");
+            if(cleaned) embed.addField(`Output`, `\`\`\`nx\n${cleaned}\`\`\``);
+        }
+        catch(err){
+            console.warn("Eval had an error:" + err.message);
+            embed.setColor("#FF0000")
+                .addField(`Output`, `\`\`\`nx\n${clean(err)}\`\`\``);
+        }
+
+        message.channel.send({embed});
+    }, ["eval", "e"]),
+    // Sends an email and a DM to the owners of the bot.
+    notify: new command(1, function(message){
+        message.channel.send(`Noted, the owner${this.owners.length > 1 ? "s" : ""} of the bot has been notified`);
+        let messageToSend = `${message.author.tag} notified you on ${new Date(message.createdTimestamp)}.\nView at: ${message.url}\nMessage Contents: \n\n${message.content.substring(0, 1000)}${message.content.length > 1000 ? "(CUTOFF)" : ""}`;
+        for(let i = 0; i < this.owners.length; i++){
+            discordHandler.client.users.fetch(this.owners[i], {cache: false}).then(function(user){
+                user.send(messageToSend).catch(console.error);
+            });
+        }
+        emailHandler.sendNotification(message.author, messageToSend).catch(function(error){
+            log(5, error);
+        });
+    }, ["notify", "notif"]),
+    // Gives basic info about bot developer and repo.
+    about: new command(0, function(message){
+        let embed = new discord.MessageEmbed();
+        embed.setColor("#00FF00")
+            .setTitle("About")
+            .setDescription(`I am a bot designed to grab comics from ${websiteHandler.downloadLocation} and post them in a discord channel.`)
+            .addField("GitHub repo:", "https://github.com/Frustrated-Programmer/WebcomicDiscordPoster/")
+            .addField("Programmer:", "https://frustratedprogrammer.com")
+            .setFooter({text: "Coded by FrustratedProgrammer."});
+        message.channel.send({embed});
+    }, ["about", "credits", "help"])
+};
+log(3, "Set up discord commands.");
+for(let i in commands){
+    commands[i]._resolveAlias();
+}
+log(3, "Set up discord command's aliases.");
 
 class discordHandlerClass{
     constructor(options){
@@ -52,16 +205,16 @@ class discordHandlerClass{
 
     /**
      * This may be called reboot, but it actually just boots up the client,
-     * it shouldn't ever be ran if the client is currently online.
+     * it shouldn't ever run, if the client is currently online.
      */
     reboot(){
         log(2, `Starting Client.`);
         if(this.client && this.client.status !== 5) this.client.destroy();
-        this.client = new discord.Client();
+        this.client = new discord.Client(undefined);
         this.client.on("ready", this.onReady.bind(this));
-        this.client.on("message", this.onMessage.bind(this));
+        this.client.on("messageCreate", this.onMessage.bind(this));
         this.client.on("error", this.onError.bind(this));
-        this.client.on("disconnect", this.onDisconnect.bind(this));
+        this.client.on("shardDisconnect", this.onDisconnect.bind(this));
         this.client.login(this.key).then().catch(this.onError.bind(this));
         return true;
     }
@@ -71,7 +224,7 @@ class discordHandlerClass{
      * @return {Promise<boolean>}
      */
     check(){
-        return new Promise((cb, rj) => {
+        return new Promise((cb) => {
             log(2, `Checking Client`);
             let reboot = true;
             if(this.client){
@@ -98,7 +251,7 @@ class discordHandlerClass{
      */
     onDisconnect(){
         if(isBotDown) return;
-        isBotDown = true;
+        global.isBotDown = true;
         log(2, "Client disconnected safely");
         log(4, (new Date()).toString());
     }
@@ -109,17 +262,11 @@ class discordHandlerClass{
      */
     onError(error){
         if(!isBotDown && this.client && this.client.status !== undefined){
-            this.client.destroy().then(function(){
-                log(2, "Client turned off incorrectly at:");
-                log(4, (new Date()).toString());
-                errorHandler.onError(error).then(function(){
-                    botDown();
-                }).catch(errorHandlerCrashed);
-            }).catch(function(e){
-                console.error(e);
-                log(4, (new Date()).toString());
+            log(2, "Client turned off incorrectly at:");
+            log(4, (new Date()).toString());
+            errorHandler.onError(error).then(function(){
                 botDown();
-            });
+            }).catch(errorHandlerCrashed);
         }
         else{
             log(2, "Client turned off incorrectly, Error: " + error.message);
@@ -134,24 +281,30 @@ class discordHandlerClass{
     onReady(){
         log(2, "Client online");
         log(4, (new Date()).toString());
-        isBotDown = false;
+        global.isBotDown = false;
         this.online = Date.now();
         if(this.rebootMsg){
-            let channel = this.client.channels.get(this.rebootMsg.c);
-            if(channel){
-                channel.fetchMessage(this.rebootMsg.m).then(function(msg){
-                    msg.edit("✅ Rebooted.");
-                    this.rebootMsg = false;
-                }).catch((e) => {
-                    log(2, `Unable to find reboot msg. rebootMsg.m: ${this.rebootMsg.m}`);
-                });
-            }
-            else log(2, `Unable to find channel that stored reboot msg. rebootMsg.c: ${this.rebootMsg.c}`);
+            this.client.channels.fetch(this.rebootMsg.c).then((channel) => {
+                if(channel){
+                    channel.messages.fetch(this.rebootMsg.m).then((msg) => {
+                        msg.edit("✅ Rebooted.").catch(function(e){log(5, e);});
+                        this.rebootMsg = false;
+                    }).catch((e) => {
+                        log(2, `Unable to find reboot msg. rebootMsg.m: ${this.rebootMsg.m}`);
+                        log(5, e);
+                    });
+                }
+                else log(2, `Unable to find channel that stored reboot msg. rebootMsg.c: ${this.rebootMsg.c}`);
+            }).catch(function(e){
+                log(5, e);
+            });
         }
         if(this.awaitingComic){
             log(2, "Sending awaiting comic.");
-            this.sendComic(this.awaitingComic);
             this.awaitingComic = false;
+            this.sendComic(this.awaitingComic).catch(function(e){
+                log(5, e);
+            });
         }
     }
 
@@ -161,48 +314,30 @@ class discordHandlerClass{
      */
     onMessage(message){
         if(message.author.bot) return;
-        let isAdmin = ((this.admins.filter((value) => value === message.author.id)).length !== 0);
-        let isOwner = ((this.owners.filter((value) => value === message.author.id)).length !== 0);
-        let mention = false;
         let nxtCmd = "";
+        let context = "";
         if(message.content.startsWith(`<@${this.client.user.id}>`) || message.content.startsWith(`<@&${this.client.user.id}>`) || message.content.startsWith(`<@!${this.client.user.id}>`)){
-            mention = true;
             if(message.content.startsWith(`<@${this.client.user.id}>`)){
-                nxtCmd = message.content.toLowerCase().substring((`<@${this.client.user.id}>`).length, message.content.length).trim().split(" ")[0];
+                let x = message.content.toLowerCase().substring((`<@${this.client.user.id}>`).length, message.content.length).trim().split(" ");
+                nxtCmd = x.splice(0, 1);
+                context = x.join(" ");
             }
             else{
-                nxtCmd = message.content.toLowerCase().substring((`<@!${this.client.user.id}>`).length, message.content.length).trim().split(" ")[0];
+                let x = message.content.toLowerCase().substring((`<@!${this.client.user.id}>`).length, message.content.length).trim().split(" ");
+                nxtCmd = x.splice(0, 1);
+                context = x.join(" ");
+            }
+            let command = commands[nxtCmd];
+            if(!command) return;
+            if(command.hasPermission(message.author)){
+                command.run(message, context);
+            }
+            else{
+                message.channel.send(command.noPerms);
             }
         }
-        if(!isAdmin || !mention) return;
-        if(nxtCmd === "adminTest"){
-            // this.channelID = msg.channel.id;
-        }
-        else if(nxtCmd === "ping") this.ping(message);
-        else if(nxtCmd === "restart") this.restart(message);
-        else if(nxtCmd === "shutdown"){
-            if(isOwner) this.shutdown(message);
-            else message.channel.send("I'm sorry, but only the Owner of the bot can use this command");
-        }
-        else if(nxtCmd === "checkforcomic") this.checkComic(message);
-        else if(nxtCmd === "eval"){
-            if(isOwner) this.eval(message);
-            else message.channel.send("I'm sorry, but only the Owner of the bot can use this command");
-        }
-        else if(nxtCmd === "notify" || nxtCmd === "notif") this.notify(message);
-        else if(nxtCmd === "about" || nxtCmd === "credits" || nxtCmd === "help") this.about(message);
-
-
     }
 
-    shutdown(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [SHUTDOWN] command.`);
-        this.client.destroy().then(function(){
-            process.exit(0);
-        }).catch(function(){
-            process.exit(0);
-        });
-    }
 
     /**
      * When the INDEX.JS wants to send the comic, this is ran. It looks for the channel and then sends the comic.
@@ -210,71 +345,72 @@ class discordHandlerClass{
      * @param retrievedData.imageLink String
      * @param retrievedData.websiteLink String
      */
-    sendComic(retrievedData={}){
+    sendComic(retrievedData = {}){
         return new Promise((cb, rj) => {
             try{
-                if(retrievedData === undefined) rj("Link isn't valid.")
+                if(retrievedData === undefined) rj("Link isn't valid.");
                 if(this.online === 0){
                     log(2, "Comic cannot send: Client isn't online.");
                     log(2, "Waiting for client to come online.");
                     this.awaitingComic = retrievedData;
                     cb();
                 }
-                let channel = this.client.channels.get(this.channelID);
-                if(channel){
-                    let actualSendComic = () => {
-                        if(retrievedData.images.length > 1){
-                            let textInsert = "";
-                            for(let i =0;i<retrievedData.links.length;i++){
-                                textInsert+=`[View new comic #${i+1}](${retrievedData.links[i]})${i+1 < retrievedData.links.length ? "\n" : ""}`
+                this.client.channels.fetch(this.channelID).then((channel) => {
+                    if(channel && channel.isText() && channel instanceof discord.TextChannel){
+                        let actualSendComic = () => {
+                            if(retrievedData.images.length > 1){
+                                let textInsert = "";
+                                for(let i = 0; i < retrievedData.links.length; i++){
+                                    textInsert += `[View ${i === retrievedData.links.length ? "newest" : "new"} comic #${i + 1}](${retrievedData.links[i]})${i + 1 < retrievedData.links.length ? "\n" : ""}`;
+                                }
+                                let embed = new discord.MessageEmbed()
+                                    .setColor("#0A5BD7")
+                                    .setTitle(`${retrievedData.images.length} new Dreamland Chronicles Comics`)
+                                    .setDescription((multipleComicsPostedMsg[Math.round(Math.random() * (multipleComicsPostedMsg.length - 1))]).replace("{num}", retrievedData.images.length))
+                                    .setThumbnail(retrievedData.images[0])
+                                    .setURL(retrievedData.links[0])
+                                    .addField("\u200B", `${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}${textInsert}`);
+                                channel.send({embeds:[embed]}).then(() => {
+                                    log(2, `Sent latest comic page.`);
+                                    cb(true);
+                                }).catch((e) => {
+                                    this.onError(e);
+                                    rj(e);
+                                });
                             }
-                            let embed = new discord.RichEmbed()
-                                .setColor("#0A5BD7")
-                                .setTitle(`${retrievedData.images.length} new Dreamland Chronicles Comics`)
-                                .setDescription((multipleComicsPostedMsg[Math.round(Math.random() * (multipleComicsPostedMsg.length - 1))]).replace("{num}",retrievedData.images.length))
-                                .setThumbnail(retrievedData.images[0])
-                                .setURL(retrievedData.links[0])
-                                .addField("\u200B", `${textInsert}${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
-                            channel.send({embed}).then(() => {
-                                log(2, `Sent latest comic page.`);
-                                cb(true);
-                            }).catch((e) => {
-                                this.onError(e);
-                                rj(e);
-                            });
-                        }
-                        else{
-                            let embed = new discord.RichEmbed()
-                                .setColor("#0A5BD7")
-                                .setTitle("New Dreamland Chronicles Comic")
-                                .setDescription(aComicPostedMsg[Math.round(Math.random() * (aComicPostedMsg.length - 1))])
-                                .setThumbnail(retrievedData.images[0])
-                                .setURL(retrievedData.links[0])
-                                .addField("\u200B", `[View it on the website.](${retrievedData.websiteLink})${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
-                            channel.send({embed}).then(() => {
-                                log(2, `Sent latest comic page.`);
-                                cb(true);
-                            }).catch((e) => {
-                                this.onError(e);
-                                rj(e);
-                            });
-                        }
-                    }
-                    if(savedData.pingEveryone === 1 || savedData.pingEveryone === 2){
-                        channel.send("@everyone").then((msg)=>{
-                            if(savedData.pingEveryone === 2){
-                                msg.delete();
+                            else{
+                                let embed = new discord.MessageEmbed()
+                                    .setColor("#0A5BD7")
+                                    .setTitle("New Dreamland Chronicles Comic")
+                                    .setDescription(aComicPostedMsg[Math.round(Math.random() * (aComicPostedMsg.length - 1))])
+                                    .setThumbnail(retrievedData.images[0])
+                                    .setURL(retrievedData.links[0])
+                                    .addField("\u200B", `[View it on the website.](${retrievedData.websiteLink})${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
+                                channel.send({embeds:[embed]}).then(() => {
+                                    log(2, `Sent latest comic page.`);
+                                    cb(true);
+                                }).catch((e) => {
+                                    this.onError(e);
+                                    rj(e);
+                                });
                             }
-                            actualSendComic();
-                        }).catch(rj);
-                    }
-                    else actualSendComic();
+                        };
+                        if(savedData.pingEveryone === 1 || savedData.pingEveryone === 2){
+                            channel.send("@everyone").then((msg) => {
+                                if(savedData.pingEveryone === 2){
+                                    msg.delete().catch(function(e){log(5,e)});
+                                }
+                                actualSendComic();
+                            }).catch(rj);
+                        }
+                        else actualSendComic();
 
-                }
-                else{
-                    log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
-                    rj("No channel");
-                }
+                    }
+                    else{
+                        log(2, `Unable to find channel to put current page. channelID: ${this.channelID}`);
+                        rj("No channel");
+                    }
+                });
 
             }
             catch(e){
@@ -283,149 +419,6 @@ class discordHandlerClass{
         });
     }
 
-    /**
-     * To restart JUST the discord client, all other code still runs.
-     * @param {Message} message
-     */
-    restart(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [RESTART] command.`);
-        message.channel.send("🔃 Rebooting...").then((m) => {
-            log(2, "Shutting down client.");
-            this.rebootMsg = {m: m.id, c: m.channel.id};
-            this.online = 0;
-            this.client.destroy();
-            setTimeout(this.reboot.bind(this), 5000);
-        }).catch(this.reboot);
-    }
-
-    /**
-     * For when the `checkForComic` command is run.
-     * It forces a check for a new comic instead of waiting for the timer to run out.
-     * @param {Message} message
-     */
-    checkComic(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [checkForComic] command.`);
-        message.channel.send("🔍 Searching...").then((m) => {
-            checkForComic(false).then(function(found){
-                if(!found) m.edit("🚫 No new comic found.");
-                else m.delete();
-            }).catch(console.error);
-        }).catch(console.error);
-    }
-
-    /**
-     * For when the `ping` command is run.
-     * Gives basic info about the bot's uptime.
-     * @param {Message} message
-     */
-    ping(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [PING] command.`);
-        let date = Date.now() - this.online;
-        let time = [];
-        let second = 1000;
-        let minute = second * 60;
-        let hour = minute * 60;
-        let day = hour * 24;
-        let times = [day, hour, minute, second];
-        for(let i = 0; i < times.length; i++){
-            time.push(0);
-            while(date > times[i]){
-                time[i]++;
-                date -= times[i];
-            }
-        }
-        let amount = [];
-        let texts = ["Day", "Hour", "Minute", "Second"];
-        for(let i = 0; i < texts.length; i++){
-            if(time[i] > 0 && amount.length < 3){
-                amount.push(`${time[i]} ${texts[i]}${time[i] === 1 ? "" : "s"}`);
-            }
-        }
-        if(amount.length < 3){
-            amount.push(`${date} Millisecond${date > 1 ? "s" : ""}`);
-        }
-        let txt = "";
-        for(let i = 0; i < amount.length; i++){
-            if(txt.length && i + 1 === amount.length) txt += "and ";
-            txt += amount[i] + " ";
-        }
-        let embed = new discord.RichEmbed()
-            .setColor("#F6CD3E")
-            .setTitle("Ping")
-            .addField(`Bot's been online for`, txt)
-            .addField("Bot will check for comic in", getTimer());
-        message.channel.send({embed});
-    }
-
-    /**
-     * For when the `eval` command is run.
-     * Runs pure code via an `Eval()` then returns the result.
-     * @param {Message} message
-     */
-    eval(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [EVAL] command.`);
-        //Since @args is all lowercase, we need to re-get the arguments without lowercasing them.
-        let code = message.content.split(` `);
-        code.shift();
-        code.shift();
-        code = code.join(` `);
-
-        //embed that is sent, [ output ] will be added once output is defined
-        //and depending on [ output ] color will be set to RED/ERROR or GREEN/SUCCESS
-        let embed = new discord.RichEmbed()
-            .setTitle(`Input`)
-            .setDescription(`\`\`\`nx\n${code}\`\`\``)
-            .setFooter(`Requested by ${message.author.tag} at ${getTime(new Date())}`, message.author.avatarURL);
-
-        function clean(text){
-            if(typeof (text) === `string`) return text.replace(/`/g, "`" + String.fromCharCode(8203)).replace(/@/g, "@" + String.fromCharCode(8203));
-            else return text;
-        }
-
-        try{
-            let evaled = eval(code);
-            if(typeof evaled !== `string`) evaled = require(`util`).inspect(evaled);
-            let cleaned = clean(evaled);
-            embed.setColor("#00FF00");
-            if(cleaned) embed.addField(`Output`, `\`\`\`nx\n${cleaned}\`\`\``);
-        }
-        catch(err){
-            embed.setColor("#FF0000")
-                .addField(`Output`, `\`\`\`nx\n${clean(err)}\`\`\``);
-        }
-
-        message.channel.send({embed});
-    }
-
-    /**
-     * For when the `About` or `Help` command is run.
-     * Gives basic info about bot developer and repo.
-     * @param msg
-     */
-    about(msg){
-        let embed = new discord.RichEmbed();
-        embed.setColor("#00FF00")
-            .setTitle("About")
-            .setDescription(`I am a bot designed to grab comics from ${websiteHandler.downloadLocation} and post them in a discord channel.`)
-            .addField("GitHub repo:", "https://github.com/Frustrated-Programmer/WebcomicDiscordPoster/")
-            .addField("Programmer:", "https://frustratedprogrammer.com")
-            .setFooter("Coded by FrustratedProgrammer.");
-        msg.channel.send({embed});
-    }
-
-    /**
-     * For when the `notify` command is run.
-     * Sends an email and a DM to the owners of the bot.
-     * @param message
-     */
-    notify(message){
-        message.channel.send(`Noted, the owner${this.owners.length > 1 ? "s" : ""} of the bot has been notified`);
-        let messageToSend = `${message.author.tag} notified you on ${new Date(message.createdTimestamp)}.\nView at: ${message.url}\nMessage Contents: \n\n${message.content.substring(0, 1000)}${message.content.length > 1000 ? "(CUTOFF)" : ""}`;
-        for(let i = 0; i < this.owners.length; i++){
-            this.client.users.get(this.owners[i]).send(messageToSend).catch(console.error);
-        }
-        emailHandler.sendNotif(message.author, messageToSend);
-    }
 }
 
 module.exports = discordHandlerClass;

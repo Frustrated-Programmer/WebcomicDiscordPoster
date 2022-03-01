@@ -9,10 +9,9 @@ const nodemailer = require("nodemailer");
 
 class emailHandler{
     constructor(savedData){
-
         log(6, "EmailHandler: READY.");
-        this.exit = false;
-        if(savedData.useEmailHandler.toString().toLowerCase() !== "true") this.exit = true;
+
+        this.exit = savedData.useEmailHandler.toString().toLowerCase() !== "true";
         this.sender = savedData.sender;
         this.receiver = savedData.receiver;
         this.host = savedData.host;
@@ -46,7 +45,7 @@ class emailHandler{
                 to: this.receiver,
                 subject: `[BOT] SHUTDOWN`,
                 text: JSON.stringify(errors),
-                html: `<span>Bot has had ${errors.length} errors and decided to shut down.</span><br><br><br><span style='font-family: Monospace'>${JSON.stringify(errors)}</span>`
+                html: `<span>Bot has had ${errors.length} errors and decided to shut down.</span><br><br><br><span style='font-family: Monospace,serif'>${JSON.stringify(errors)}</span>`
             }).then(cb).catch(rj);
         });
     }
@@ -68,7 +67,7 @@ class emailHandler{
                 to: this.receiver,
                 subject: `[BOT] has had a [ERROR${errorCount !== 0 ? "#" + errorCount : ""}]`,
                 text: error,
-                html: `<span style='font-family: Monospace'>${error.message}</span><br><br><br><span style="font-family: Monospace">${error}</span>`
+                html: `<span style='font-family: Monospace,serif'>${error.message}</span><br><br><br><span style="font-family: Monospace,serif">${error}</span>`
             }).then(cb).catch(rj);
         });
     }
@@ -79,7 +78,7 @@ class emailHandler{
      * @param {string} message
      * @return {Promise<null>}
      */
-    sendNotif(user, message){
+    sendNotification(user, message){
         return new Promise((cb, rj) => {
             if(this.exit){
                 log(6, "Cannot send notification email due to emailHandler disabled.");

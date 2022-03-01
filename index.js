@@ -1,16 +1,41 @@
 require("./loggingHandler.js");
 //How often does it check for a new page.
-global.updateTimer = (((1000 * 60) * 60));//Every hour.
 global.savedData = require("./data.json");
+global.updateTimer = savedData.updateTimer || 86400000;
 log(4, (new Date()).toString());
 
-const fs = require("fs");
 let botDownAlready = false;
+global.convertTimeToText = function(dateTime,full){
+    let time = [];
+    let times = [86400000, 3600000, 60000, 1000];
+    for(let i = 0; i < times.length; i++){
+        time.push(0);
+        while(dateTime > times[i]){
+            time[i]++;
+            dateTime -= times[i];
+        }
+    }
+    time.push(dateTime);
+    let amount = "";
+
+    function addToAmount(txt, final){
+        if(final && amount.length) amount += "and ";
+        else txt += ", ";
+        amount += txt;
+    }
+
+    if(time[0] > 0) addToAmount(`${time[0]} Days`, false);
+    if(time[1] > 0) addToAmount(`${time[1]} Hours`, false);
+    if(time[2] > 0) addToAmount(`${time[2]} Minutes`, !((time[3] > 0 && time[0] === 0) || full));
+    if((time[3] > 0 && time[0] === 0) || full) addToAmount(`${time[3]} Seconds`, !((time[4] > 0 && time[0] === 0 && time[1] === 0) || full));
+    if((time[4] > 0 && time[0] === 0 && time[1] === 0) || full) addToAmount(`${time[4]} Milliseconds`, true);
+    return amount;
+}
 global.isBotDown = null;
 global.botDown = function(){
     try{
         if(botDownAlready) return;
-        isBotDown = true;
+        global.isBotDown = true;
         log(0, "Checking if client can reconnect in 30 minutes.");
         log(4, (new Date()).toString());
         botDownAlready = true;
@@ -43,34 +68,7 @@ global.errorHandlerCrashed = function(error){
 let lastRan = 0;
 global.timeout = undefined;
 global.getTimer = function(full = false){
-    let timeTill = updateTimer - (Date.now() - lastRan);
-    let time = [];
-    let second = 1000;
-    let minute = second * 60;
-    let hour = minute * 60;
-    let day = hour * 24;
-    let times = [day, hour, minute, second];
-    for(let i = 0; i < times.length; i++){
-        time.push(0);
-        while(timeTill > times[i]){
-            time[i]++;
-            timeTill -= times[i];
-        }
-    }
-    let amount = "";
-
-    function addToAmount(txt, final){
-        if(final && amount.length) amount += "and ";
-        else txt += ", ";
-        amount += txt;
-    }
-
-    if(time[0] > 0) addToAmount(`${time[0]} Days`, false);
-    if(time[1] > 0) addToAmount(`${time[1]} Hours`, false);
-    if(time[2] > 0) addToAmount(`${time[2]} Minutes`, !((time[3] > 0 && time[0] === 0) || full));
-    if((time[3] > 0 && time[0] === 0) || full) addToAmount(`${time[3]} Seconds`, !((timeTill > 0 && time[0] === 0 && time[1] === 0) || full));
-    if((timeTill > 0 && time[0] === 0 && time[1] === 0) || full) addToAmount(`${timeTill} Milliseconds`, true);
-    return amount;
+    return convertTimeToText(updateTimer - (Date.now() - lastRan),full)
 };
 global.checkForComic = function(repeat=false){
     log(0, "Checking for comic.");
@@ -92,7 +90,7 @@ global.checkForComic = function(repeat=false){
             if(repeat){
                 clearTimeout(timeout);
                 lastRan = Date.now();
-                timeout = setTimeout(checkForComic, updateTimer, repeat);
+                global.timeout = setTimeout(checkForComic, updateTimer, repeat);
             }
         }
         catch(e){
