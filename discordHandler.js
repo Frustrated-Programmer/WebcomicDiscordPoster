@@ -385,7 +385,7 @@ class discordHandlerClass{
                                     .setDescription(aComicPostedMsg[Math.round(Math.random() * (aComicPostedMsg.length - 1))])
                                     .setThumbnail(retrievedData.images[0])
                                     .setURL(retrievedData.links[0])
-                                    .addField("\u200B", `[View it on the website.](${retrievedData.websiteLink})${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
+                                    .addField("\u200B", `[View it on the website.](${retrievedData.links[0]})${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
                                 channel.send({embeds:[embed]}).then(() => {
                                     log(2, `Sent latest comic page.`);
                                     cb(true);
