@@ -67,10 +67,10 @@ class command{
         }
     }
 
-    run(message, context){
+    run(message, context, parent){
         if(typeof this._func === "function"){
             log(2, `${message.author.username}[${message.author.id}] used the [${this.name}] command.`);
-            return this._func(message, context);
+            return this._func.bind(parent)(message, context);
         }
         else return false;
     }
@@ -87,18 +87,16 @@ class command{
 let commands = {
     // Gives basic info about the bot's uptime.
     ping: new command(0, function(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [PING] command.`);
-        let txt = convertTimeToText(Date.now() - this.online);
+        let txt = convertTimeToText(Date.now() - this.online) || "Unknown";
         let embed = new discord.MessageEmbed()
             .setColor("#F6CD3E")
             .setTitle("Ping")
             .addField(`Bot's been online for`, txt)
             .addField("Bot will check for comic in", getTimer());
-        message.channel.send({embed});
+        message.channel.send({embeds:[embed]});
     }, "ping"),
     // To restart JUST the discord client, all other code still runs.
     restart: new command(1, function(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [RESTART] command.`);
         message.channel.send("🔃 Rebooting...").then((m) => {
             log(2, "Shutting down client.");
             this.rebootMsg = {m: m.id, c: m.channel.id};
@@ -109,7 +107,6 @@ let commands = {
     }, "restart"),
     // Shutdown the ENTIRE process, not just the Discord Client. (Accessible by only Owners)
     shutdown: new command(2, function(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [SHUTDOWN] command.`);
         discordHandler.client.destroy();
         process.exit(0);
     }, "shutdown"),
@@ -124,7 +121,6 @@ let commands = {
     }, "checkForComic"),
     // Runs pure code via an `Eval()` then returns the result.
     eval: new command(2, function(message){
-        log(2, `${message.author.username}[${message.author.id}] used the [EVAL] command.`);
         //Since @context is all lowercase, we need to re-get the arguments without lowercasing them.
         let code = message.content.split(` `);
         code.shift();
@@ -156,7 +152,7 @@ let commands = {
                 .addField(`Output`, `\`\`\`nx\n${clean(err)}\`\`\``);
         }
 
-        message.channel.send({embed});
+        message.channel.send({embeds:[embed]});
     }, ["eval", "e"]),
     // Sends an email and a DM to the owners of the bot.
     notify: new command(1, function(message){
@@ -180,7 +176,7 @@ let commands = {
             .addField("GitHub repo:", "https://github.com/Frustrated-Programmer/WebcomicDiscordPoster/")
             .addField("Programmer:", "https://frustratedprogrammer.com")
             .setFooter({text: "Coded by FrustratedProgrammer."});
-        message.channel.send({embed});
+        message.channel.send({embeds:[embed]});
     }, ["about", "credits", "help"])
 };
 log(3, "Set up discord commands.");
@@ -210,7 +206,7 @@ class discordHandlerClass{
     reboot(){
         log(2, `Starting Client.`);
         if(this.client && this.client.status !== 5) this.client.destroy();
-        this.client = new discord.Client(undefined);
+        this.client = new discord.Client({intents:[discord.Intents.FLAGS.GUILD_MESSAGES,discord.Intents.FLAGS.GUILDS]});
         this.client.on("ready", this.onReady.bind(this));
         this.client.on("messageCreate", this.onMessage.bind(this));
         this.client.on("error", this.onError.bind(this));
@@ -301,10 +297,12 @@ class discordHandlerClass{
         }
         if(this.awaitingComic){
             log(2, "Sending awaiting comic.");
-            this.awaitingComic = false;
-            this.sendComic(this.awaitingComic).catch(function(e){
-                log(5, e);
-            });
+            this.sendComic(this.awaitingComic).then(()=>{this.awaitingComic = false;})
+                .catch((e)=>{
+                    this.awaitingComic = false;
+                    log(5, e);
+                });
+
         }
     }
 
@@ -327,10 +325,11 @@ class discordHandlerClass{
                 nxtCmd = x.splice(0, 1);
                 context = x.join(" ");
             }
+            if(nxtCmd instanceof Array) nxtCmd = nxtCmd[0];
             let command = commands[nxtCmd];
             if(!command) return;
             if(command.hasPermission(message.author)){
-                command.run(message, context);
+                command.run(message, context, this);
             }
             else{
                 message.channel.send(command.noPerms);
@@ -349,6 +348,7 @@ class discordHandlerClass{
         return new Promise((cb, rj) => {
             try{
                 if(retrievedData === undefined) rj("Link isn't valid.");
+                else if(retrievedData === false) rj("retrievedData is [false]")
                 if(this.online === 0){
                     log(2, "Comic cannot send: Client isn't online.");
                     log(2, "Waiting for client to come online.");
@@ -358,7 +358,24 @@ class discordHandlerClass{
                 this.client.channels.fetch(this.channelID).then((channel) => {
                     if(channel && channel.isText() && channel instanceof discord.TextChannel){
                         let actualSendComic = () => {
-                            if(retrievedData.images.length > 1){
+                            console.log(retrievedData)
+                            if(retrievedData.images.length === 1){
+                                let embed = new discord.MessageEmbed()
+                                    .setColor("#0A5BD7")
+                                    .setTitle("New Dreamland Chronicles Comic")
+                                    .setDescription(aComicPostedMsg[Math.round(Math.random() * (aComicPostedMsg.length - 1))])
+                                    .setThumbnail(retrievedData.images[0])
+                                    .setURL(retrievedData.links[0])
+                                    .addField("\u200B", `[View it on the website.](${retrievedData.links[0]})${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
+                                channel.send({embeds:[embed]}).then(() => {
+                                    log(2, `Sent latest comic page.`);
+                                    cb(true);
+                                }).catch((e) => {
+                                    this.onError(e);
+                                    rj(e);
+                                });
+                            }
+                            else if(retrievedData.images.length <= 10){
                                 let textInsert = "";
                                 for(let i = 0; i < retrievedData.links.length; i++){
                                     textInsert += `[View ${i === retrievedData.links.length ? "newest" : "new"} comic #${i + 1}](${retrievedData.links[i]})${i + 1 < retrievedData.links.length ? "\n" : ""}`;
@@ -369,7 +386,7 @@ class discordHandlerClass{
                                     .setDescription((multipleComicsPostedMsg[Math.round(Math.random() * (multipleComicsPostedMsg.length - 1))]).replace("{num}", retrievedData.images.length))
                                     .setThumbnail(retrievedData.images[0])
                                     .setURL(retrievedData.links[0])
-                                    .addField("\u200B", `${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}${textInsert}`);
+                                    .addField("\u200B", `${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}\n${textInsert}`);
                                 channel.send({embeds:[embed]}).then(() => {
                                     log(2, `Sent latest comic page.`);
                                     cb(true);
@@ -378,14 +395,14 @@ class discordHandlerClass{
                                     rj(e);
                                 });
                             }
-                            else{
+                            else {
                                 let embed = new discord.MessageEmbed()
                                     .setColor("#0A5BD7")
-                                    .setTitle("New Dreamland Chronicles Comic")
-                                    .setDescription(aComicPostedMsg[Math.round(Math.random() * (aComicPostedMsg.length - 1))])
+                                    .setTitle(`${retrievedData.images.length} new Dreamland Chronicles Comics`)
+                                    .setDescription((multipleComicsPostedMsg[Math.round(Math.random() * (multipleComicsPostedMsg.length - 1))]).replace("{num}", retrievedData.images.length))
                                     .setThumbnail(retrievedData.images[0])
                                     .setURL(retrievedData.links[0])
-                                    .addField("\u200B", `[View it on the website.](${retrievedData.links[0]})${retrievedData.extra ? `\n[Go to previously posted.](${retrievedData.extra})` : ""}`);
+                                    .addField("There were too many comics too fit here, so checkout", `[The first new comic.](${retrievedData.links[0]})\n[The latest comic.](${retrievedData.links[retrievedData.links.length-1]})${retrievedData.extra ? `\n[Or go to the previously posted.](${retrievedData.extra})` : ""}`);
                                 channel.send({embeds:[embed]}).then(() => {
                                     log(2, `Sent latest comic page.`);
                                     cb(true);
