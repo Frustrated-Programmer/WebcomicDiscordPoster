@@ -57,11 +57,13 @@ class websiteHandler{
      * Gets the pure HTML from the comic's page.
      * @return {Promise<string>}
      */
-    getCurrentPageHTML(){
+    getCurrentPageHTML(LINK = false){
         return new Promise((cb, rj) => {
             log(1, "Checking HTML");
             log(4, (new Date()).toString());
-            fetch(this.data.link)
+            if(!LINK) LINK = this.data.link;
+            console.log(LINK)
+            fetch(LINK)
                 .then((result) => {
                     if(result){
                         log(1, "Successfully retrieved HTML for: " + this.data.link);
@@ -97,9 +99,9 @@ class websiteHandler{
      * Get the main comic from the HTML
      * @return {Promise<string>}
      */
-    getCurrentPageImgLink(){
+    getCurrentPageImgLink(LINK=false){
         return new Promise((cb, rj) => {
-            this.getCurrentPageHTML().then((HTML) => {
+            this.getCurrentPageHTML(LINK).then((HTML) => {
                 HTML = HTML.replace(/\s+/g, "");
                 HTML = HTML.replace(/\t+/g, "");
                 if(HTML.indexOf("<divid=\"comic\">") === -1) {
@@ -151,7 +153,7 @@ class websiteHandler{
             }
             let repeater = ()=>{
                 getPage().then((result)=>{
-                    if(!result && returnData.images.length === 0) {
+                    if(!result && returnData.images.length === 0){
                         this.getDownloadLocation();
                         cb(false);
                     }
